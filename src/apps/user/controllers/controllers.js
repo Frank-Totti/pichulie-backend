@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const bcrypt = require('bcrypt');
+const { cloudinary } = require('../../../config/cloudinary');
 require('dotenv').config();
 
 /**
@@ -236,6 +237,71 @@ const update = async (req, res) => {
 
   } catch (error){
     return handleServerError(error, 'Update user', res);
+  }
+};
+
+/**
+ * User profile picture upload controller
+ *
+ * Handles uploading or replacing an authenticated user's profile picture.
+ * Integrates with Cloudinary (via `multer-storage-cloudinary`) to store images
+ * and removes the previous picture if it is not the default.
+ *
+ * Upload flow:
+ * 1. Validates that a file is included in the request.
+ * 2. Uses `multer` middleware to automatically upload the file to Cloudinary.
+ * 3. Retrieves the authenticated user from the database.
+ * 4. Checks if the user has a previous profile picture:
+ *    - If not the default, attempts to delete it from Cloudinary.
+ * 5. Updates the user document with the new picture URL and ID.
+ * 6. Saves the user and returns a success response.
+ *
+ * **Security & UX Features:**
+ * - Requires authentication via Bearer token.
+ * - Prevents orphaned images by deleting old pictures (when not default).
+ * - Validates file presence before processing.
+ * - Uses centralized error handling for unexpected failures.
+ *
+ * @see {@link https://cloudinary.com/documentation/node_integration} Cloudinary Node.js SDK
+ * @see {@link https://github.com/expressjs/multer} Multer documentation
+ */
+const uploadProfilePicture = async (req, res) => {
+  try {
+    // Check if file was uploaded
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    // File is automatically uploaded to Cloudinary via multer-storage-cloudinary
+    const result = req.file;
+
+    const user = await User.findById(req.user.id);
+
+    // Store the old profile picture ID before updating
+    const oldProfilePictureID = user.profilePicture.profilePictureID;
+
+    // Delete previous profile picture from cloudinary if not default
+    const isPfpDefault = oldProfilePictureID === 'Global_Profile_Picture_j3ayrk';
+
+    if(!isPfpDefault) {
+      try{
+        await cloudinary.uploader.destroy(oldProfilePictureID);
+      } catch (deleteError) {
+          console.warn('Failed to delete old profile picture:', deleteError);
+      }
+    }
+
+    // Update user profile picture info
+    user.profilePicture.profilePictureURL = result.path;
+    user.profilePicture.profilePictureID = result.filename;
+
+    // Save the user
+    await user.save();
+    return res.status(200).json({ message: 'Profile picture uploaded successfully' });
+
+  } catch (error) {
+    console.error('Upload error:', error);
+    return handleServerError(error, 'Upload user profile picture', res);
   }
 };
 
@@ -676,4 +742,4 @@ const resendResetToken = async (req, res) => {
   }
 };
 
-module.exports = { login, requestPasswordReset, resetPassword, validateResetToken, resendResetToken, register, update };
+module.exports = { login, requestPasswordReset, resetPassword, validateResetToken, resendResetToken, register, update, uploadProfilePicture };

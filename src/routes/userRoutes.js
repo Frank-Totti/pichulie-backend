@@ -1,7 +1,8 @@
 const express = require('express');
-const { login, requestPasswordReset, resetPassword, validateResetToken, resendResetToken, register, update } = require('../apps/user/controllers/controllers');
+const { login, requestPasswordReset, resetPassword, validateResetToken, resendResetToken, register, update, uploadProfilePicture } = require('../apps/user/controllers/controllers');
 const { authenticateToken } = require('../middlewares/auth');
-const loginLimiter = require('../apps/user/middlewares/middlewares');
+const { upload } = require('../config/cloudinary');
+const { loginLimiter, handleMulterError} = require('../apps/user/middlewares/middlewares');
 
 const router = express.Router();
 
@@ -30,6 +31,14 @@ router.post('/register', register);
  * @description Allows an authenticated user to update their account information. Requires a valid Bearer token.
  */
 router.put('/update', authenticateToken, update);
+
+/**
+ * @route PUT /upload-pfp
+ * @group User - User account operations
+ * @summary Upload user profile picture
+ * @description Allows an authenticated user to upload or replace their profile picture.
+ */
+router.put('/upload-pfp', authenticateToken, upload.single('profilePicture'), handleMulterError, uploadProfilePicture);
 
 // Routes for password reset
 /**

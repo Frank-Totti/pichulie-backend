@@ -71,6 +71,7 @@ const notFoundHandler = (req, res) => {
       'POST /api/users/login',
       'POST /api/users/register',
       'POST /api/users/update',
+      'POST /api/users/upload-pfp',
       'POST /api/users/request-reset',
       'GET /api/users/validate-token/:token',
       'POST /api/users/reset-password',
