@@ -1,0 +1,2049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Global</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Global</h1>
+
+    
+
+
+
+
+<section>
+
+<header>
+    
+        <h2></h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+        <h3 class="subsection-title">Members</h3>
+
+        
+            
+<h4 class="name" id="TaskSchema"><span class="type-signature">(constant) </span>TaskSchema<span class="type-signature"> :mongoose.Schema.&lt;TaskDocument></span></h4>
+
+
+
+
+<div class="description">
+    <p>Mongoose schema for Task model</p>
+<p>Defines the structure and validation rules for task documents in MongoDB.
+Supports task management with status tracking, user association, scheduling,
+and remembering functionality for important tasks.</p>
+</div>
+
+
+
+    <h5>Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type">mongoose.Schema.&lt;TaskDocument></span>
+
+
+        </li>
+    </ul>
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="apps_task_models_models.js.html">apps/task/models/models.js</a>, <a href="apps_task_models_models.js.html#line26">line 26</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+    <dt class="tag-see">See:</dt>
+    <dd class="tag-see">
+        <ul>
+            <li><a href="https://mongoosejs.com/docs/guide.html">Mongoose Schema Guide</a></li>
+        
+            <li><a href="https://docs.mongodb.com/manual/reference/bson-types/#objectid">MongoDB ObjectId</a></li>
+        </ul>
+    </dd>
+    
+
+    
+</dl>
+
+
+
+
+
+    <h5>Example</h5>
+    
+    <pre class="prettyprint"><code>// Create a new task
+const newTask = new Task({
+  title: "Complete project documentation",
+  detail: "Write comprehensive API documentation with examples",
+  status: "to do",
+  task_date: new Date("2024-03-25T10:00:00.000Z"),
+  remember: true,
+  user_id: "507f1f77bcf86cd799439011"
+});</code></pre>
+
+
+
+        
+            
+<h4 class="name" id="UserSchema"><span class="type-signature">(constant) </span>UserSchema<span class="type-signature"> :mongoose.Schema.&lt;UserDocument></span></h4>
+
+
+
+
+<div class="description">
+    <p>Mongoose schema for User model</p>
+<p>Defines the structure and validations for user documents in MongoDB.
+Includes fields for authentication, personal information, and password reset management.</p>
+</div>
+
+
+
+    <h5>Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type">mongoose.Schema.&lt;UserDocument></span>
+
+
+        </li>
+    </ul>
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="apps_user_models_models.js.html">apps/user/models/models.js</a>, <a href="apps_user_models_models.js.html#line23">line 23</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+    <dt class="tag-see">See:</dt>
+    <dd class="tag-see">
+        <ul>
+            <li><a href="https://mongoosejs.com/docs/guide.html">Mongoose Schema Guide</a></li>
+        </ul>
+    </dd>
+    
+
+    
+</dl>
+
+
+
+
+
+    <h5>Example</h5>
+    
+    <pre class="prettyprint"><code>// Create a new user
+const newUser = new User({
+  email: 'user@example.com',
+  password: 'hashedPassword123',
+  name: 'John Doe',
+  age: 25
+});</code></pre>
+
+
+
+        
+    
+
+    
+        <h3 class="subsection-title">Methods</h3>
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="authMiddleware"><span class="type-signature"></span>authMiddleware<span class="signature">()</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>JWT Authentication Middleware</p>
+<p>Validates JWT tokens from request headers and populates req.user with decoded
+token payload. Implements Bearer token authentication pattern with proper
+error handling for missing, malformed, invalid, or expired tokens.</p>
+<p>Token validation flow:</p>
+<ol>
+<li>Extracts Authorization header from request</li>
+<li>Validates header exists and starts with &quot;Bearer &quot;</li>
+<li>Extracts JWT token by removing &quot;Bearer &quot; prefix</li>
+<li>Verifies token signature and expiration using JWT_SECRET</li>
+<li>Decodes token payload and attaches to req.user</li>
+<li>Calls next() to continue to protected route</li>
+<li>Returns appropriate error responses for validation failures</li>
+</ol>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="apps_task_middlewares_middlewares.js.html">apps/task/middlewares/middlewares.js</a>, <a href="apps_task_middlewares_middlewares.js.html#line23">line 23</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+    <dt class="tag-see">See:</dt>
+    <dd class="tag-see">
+        <ul>
+            <li><a href="https://jwt.io/">https://jwt.io/</a> JWT Token Standard</li>
+        
+            <li><a href="https://www.npmjs.com/package/jsonwebtoken">https://www.npmjs.com/package/jsonwebtoken</a> jsonwebtoken Library</li>
+        
+            <li><a href="https://tools.ietf.org/html/rfc6750">https://tools.ietf.org/html/rfc6750</a> Bearer Token RFC</li>
+        </ul>
+    </dd>
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="authenticateToken"><span class="type-signature">(async) </span>authenticateToken<span class="signature">()</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Middleware Authentication JWT
+Verifies if the user has a valid token before accessing protected routes</p>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="middlewares_auth.js.html">middlewares/auth.js</a>, <a href="middlewares_auth.js.html#line8">line 8</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="createEmailTransporter"><span class="type-signature"></span>createEmailTransporter<span class="signature">()</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Email transporter factory function</p>
+<p>Creates and configures a Nodemailer transporter instance for sending emails
+through Gmail's SMTP service. Uses environment variables for authentication
+credentials to maintain security and configurability across different environments.</p>
+<p>Configuration details:</p>
+<ul>
+<li><strong>Service</strong>: Uses Gmail's SMTP service for reliable email delivery</li>
+<li><strong>Authentication</strong>: Retrieves credentials from environment variables</li>
+<li><strong>Security</strong>: Credentials are never hardcoded in the application</li>
+<li><strong>Reusability</strong>: Returns a configured transporter ready for immediate use</li>
+</ul>
+<p>Security:</p>
+<ul>
+<li>Uses environment variables to protect email credentials</li>
+<li>Requires Gmail app-specific password (more secure than regular password)</li>
+<li>No sensitive information hardcoded in the application</li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="apps_user_controllers_controllers.js.html">apps/user/controllers/controllers.js</a>, <a href="apps_user_controllers_controllers.js.html#line205">line 205</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+    <dt class="tag-see">See:</dt>
+    <dd class="tag-see">
+        <ul>
+            <li><a href="https://nodemailer.com/">https://nodemailer.com/</a> Nodemailer Documentation</li>
+        
+            <li><a href="https://support.google.com/accounts/answer/185833">https://support.google.com/accounts/answer/185833</a> Gmail App Passwords</li>
+        
+            <li><a href="https://nodemailer.com/smtp/gmail/">https://nodemailer.com/smtp/gmail/</a> Nodemailer Gmail Configuration</li>
+        </ul>
+    </dd>
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="createTask"><span class="type-signature">(async) </span>createTask<span class="signature">()</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Create task controller</p>
+<p>Creates a new task for the authenticated user with provided task details.
+Automatically associates the task with the authenticated user and handles
+task creation with comprehensive error handling and validation.</p>
+<p>Task creation flow:</p>
+<ol>
+<li>Extracts task details from request body</li>
+<li>Creates new Task instance with provided data</li>
+<li>Automatically assigns authenticated user ID to task</li>
+<li>Validates task data against schema requirements</li>
+<li>Saves new task to database</li>
+<li>Returns success response with created task details</li>
+<li>Handles errors with environment-aware logging</li>
+</ol>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="apps_task_controllers_controllers.js.html">apps/task/controllers/controllers.js</a>, <a href="apps_task_controllers_controllers.js.html#line158">line 158</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+    <dt class="tag-see">See:</dt>
+    <dd class="tag-see">
+        <ul>
+            <li><a href="https://mongoosejs.com/docs/validation.html">https://mongoosejs.com/docs/validation.html</a> Mongoose Validation</li>
+        
+            <li><a href="https://mongoosejs.com/docs/middleware.html">https://mongoosejs.com/docs/middleware.html</a> Mongoose Middleware</li>
+        
+            <li><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/201">https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/201</a> HTTP 201 Created</li>
+        </ul>
+    </dd>
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="getTasksByUser"><span class="type-signature">(async) </span>getTasksByUser<span class="signature">()</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Get tasks by user with grouping controller</p>
+<p>Retrieves all tasks for the authenticated user, sorts them by specified criteria,
+and groups them by status for organized display. Provides a structured view
+of user tasks organized by their current status with flexible sorting options.</p>
+<p>Task retrieval and grouping flow:</p>
+<ol>
+<li>Determines sort criteria from query parameter (title or task_date)</li>
+<li>Retrieves all tasks for authenticated user with sorting applied</li>
+<li>Groups tasks by status using Array.reduce method</li>
+<li>Creates organized structure with tasks categorized by status</li>
+<li>Returns grouped tasks in structured response format</li>
+<li>Handles errors with environment-aware logging</li>
+</ol>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="apps_task_controllers_controllers.js.html">apps/task/controllers/controllers.js</a>, <a href="apps_task_controllers_controllers.js.html#line203">line 203</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+    <dt class="tag-see">See:</dt>
+    <dd class="tag-see">
+        <ul>
+            <li><a href="https://docs.mongodb.com/manual/reference/method/cursor.sort/">https://docs.mongodb.com/manual/reference/method/cursor.sort/</a> MongoDB Sort Documentation</li>
+        
+            <li><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/Reduce">https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/Reduce</a> Array.reduce() Documentation</li>
+        
+            <li><a href="https://mongoosejs.com/docs/api.html#query_Query-sort">https://mongoosejs.com/docs/api.html#query_Query-sort</a> Mongoose Sort Documentation</li>
+        </ul>
+    </dd>
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="getUserTasks"><span class="type-signature">(async) </span>getUserTasks<span class="signature">()</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Get user tasks controller</p>
+<p>Retrieves filtered and paginated tasks for the authenticated user with optional
+query parameters for filtering by status, date, and pagination. Implements
+performance monitoring and comprehensive filtering capabilities.</p>
+<p>Task retrieval flow:</p>
+<ol>
+<li>Starts performance timer for request monitoring</li>
+<li>Extracts and validates query parameters with defaults</li>
+<li>Builds base filter for user-specific tasks (user_id)</li>
+<li>Applies optional status filter with validation</li>
+<li>Applies optional date filter with day-range calculation</li>
+<li>Executes database query with constructed filters</li>
+<li>Implements pagination with limit and skip</li>
+<li>Returns filtered tasks with metadata</li>
+</ol>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="apps_task_controllers_controllers.js.html">apps/task/controllers/controllers.js</a>, <a href="apps_task_controllers_controllers.js.html#line67">line 67</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+    <dt class="tag-see">See:</dt>
+    <dd class="tag-see">
+        <ul>
+            <li><a href="https://docs.mongodb.com/manual/tutorial/query-documents/">https://docs.mongodb.com/manual/tutorial/query-documents/</a> MongoDB Query Documentation</li>
+        
+            <li><a href="https://mongoosejs.com/docs/queries.html">https://mongoosejs.com/docs/queries.html</a> Mongoose Query Documentation</li>
+        
+            <li><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date">https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date</a> JavaScript Date Object</li>
+        </ul>
+    </dd>
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="handleServerError"><span class="type-signature"></span>handleServerError<span class="signature">()</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Server error handler utility function</p>
+<p>Centralized error handling function that manages server errors with
+environment-aware logging and consistent client responses. Provides
+detailed error information in development while maintaining security
+in production by hiding sensitive error details.</p>
+<p>Error handling behavior:</p>
+<ul>
+<li><strong>Development mode</strong>: Logs full error details including stack trace to console</li>
+<li><strong>Production mode</strong>: Logs only generic error occurrence without sensitive details</li>
+<li><strong>Client response</strong>: Always returns generic message to prevent information leakage</li>
+<li><strong>Error details</strong>: Included in response only in development environment</li>
+</ul>
+<p>Security:</p>
+<ul>
+<li>Prevents sensitive error information from being exposed to clients in production</li>
+<li>Logs detailed errors only in development for debugging purposes</li>
+<li>Maintains consistent error response structure across all endpoints</li>
+</ul>
+<p>Performance:</p>
+<ul>
+<li>Minimal overhead as it only performs console logging and JSON response</li>
+<li>Conditional logging based on environment reduces production log noise</li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="apps_task_controllers_controllers.js.html">apps/task/controllers/controllers.js</a>, <a href="apps_task_controllers_controllers.js.html#line30">line 30</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+    <dt class="tag-see">See:</dt>
+    <dd class="tag-see">
+        <ul>
+            <li><a href="https://expressjs.com/en/guide/error-handling.html">https://expressjs.com/en/guide/error-handling.html</a> Express Error Handling</li>
+        
+            <li><a href="https://nodejs.org/api/errors.html">https://nodejs.org/api/errors.html</a> Node.js Error Documentation</li>
+        </ul>
+    </dd>
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="handleServerError"><span class="type-signature"></span>handleServerError<span class="signature">()</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Server error handler utility function</p>
+<p>Centralized error handling function that manages server errors with
+environment-aware logging and consistent client responses. Provides
+detailed error information in development while maintaining security
+in production by hiding sensitive error details.</p>
+<p>Error handling behavior:</p>
+<ul>
+<li><strong>Development mode</strong>: Logs full error details including stack trace to console</li>
+<li><strong>Production mode</strong>: Logs only generic error occurrence without sensitive details</li>
+<li><strong>Client response</strong>: Always returns generic message to prevent information leakage</li>
+<li><strong>Error details</strong>: Included in response only in development environment</li>
+</ul>
+<p>Security:</p>
+<ul>
+<li>Prevents sensitive error information from being exposed to clients in production</li>
+<li>Logs detailed errors only in development for debugging purposes</li>
+<li>Maintains consistent error response structure across all endpoints</li>
+</ul>
+<p>Performance:</p>
+<ul>
+<li>Minimal overhead as it only performs console logging and JSON response</li>
+<li>Conditional logging based on environment reduces production log noise</li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="apps_user_controllers_controllers.js.html">apps/user/controllers/controllers.js</a>, <a href="apps_user_controllers_controllers.js.html#line35">line 35</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+    <dt class="tag-see">See:</dt>
+    <dd class="tag-see">
+        <ul>
+            <li><a href="https://expressjs.com/en/guide/error-handling.html">https://expressjs.com/en/guide/error-handling.html</a> Express Error Handling</li>
+        
+            <li><a href="https://nodejs.org/api/errors.html">https://nodejs.org/api/errors.html</a> Node.js Error Documentation</li>
+        </ul>
+    </dd>
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="login"><span class="type-signature">(async) </span>login<span class="signature">()</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>User login controller</p>
+<p>Authenticates a user by validating email and password credentials.
+Generates a JWT token for successful authentication and handles various
+authentication failure scenarios including invalid credentials and blocked accounts.</p>
+<p>Authentication flow:</p>
+<ol>
+<li>Extracts email and password from request body</li>
+<li>Searches for user by email in database</li>
+<li>Validates password using bcrypt comparison</li>
+<li>Checks if user account is blocked</li>
+<li>Generates JWT token with user ID and email</li>
+<li>Returns success response with token and user data (excluding password)</li>
+</ol>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="apps_user_controllers_controllers.js.html">apps/user/controllers/controllers.js</a>, <a href="apps_user_controllers_controllers.js.html#line144">line 144</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+    <dt class="tag-see">See:</dt>
+    <dd class="tag-see">
+        <ul>
+            <li><a href="https://jwt.io/">https://jwt.io/</a> JWT token specification</li>
+        
+            <li><a href="https://www.npmjs.com/package/bcrypt">https://www.npmjs.com/package/bcrypt</a> bcrypt documentation</li>
+        </ul>
+    </dd>
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="loginLimiter"><span class="type-signature"></span>loginLimiter<span class="signature">()</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Login rate limiting middleware</p>
+<p>Implements rate limiting for login attempts to prevent brute force attacks.
+Tracks login attempts per IP address within a sliding time window and
+blocks requests that exceed the maximum allowed attempts.</p>
+<p><strong>Security Features:</strong></p>
+<ul>
+<li>IP-based tracking prevents brute force attacks</li>
+<li>Sliding time window provides flexible rate limiting</li>
+<li>Automatic cleanup when time window expires</li>
+<li>Memory-based storage for fast lookup</li>
+<li>Configurable limits through constants</li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="apps_user_middlewares_middlewares.js.html">apps/user/middlewares/middlewares.js</a>, <a href="apps_user_middlewares_middlewares.js.html#line23">line 23</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+    <dt class="tag-see">See:</dt>
+    <dd class="tag-see">
+        <ul>
+            <li><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429">https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429</a> HTTP 429 Too Many Requests</li>
+        
+            <li><a href="https://expressjs.com/en/guide/behind-proxies.html">https://expressjs.com/en/guide/behind-proxies.html</a> Express Behind Proxies</li>
+        </ul>
+    </dd>
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="register"><span class="type-signature">(async) </span>register<span class="signature">()</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>User registration controller</p>
+<p>Handles new user account creation with comprehensive validation and security measures.
+Validates all required fields, enforces password requirements, prevents duplicate accounts,
+and securely stores user data with bcrypt password hashing.</p>
+<p>Registration validation flow:</p>
+<ol>
+<li>Extracts all required fields from request body</li>
+<li>Validates that all fields are provided (email, password, passwordCheck, name, age)</li>
+<li>Enforces minimum password length (6 characters)</li>
+<li>Verifies password and passwordCheck match exactly</li>
+<li>Checks email uniqueness against existing users</li>
+<li>Hashes password securely using bcrypt with 10 salt rounds</li>
+<li>Creates new user document with hashed password</li>
+<li>Saves user to database and returns success response with user ID</li>
+</ol>
+<p><strong>Security Features:</strong></p>
+<ul>
+<li>Password confirmation validation prevents typos</li>
+<li>Minimum password length enforcement (6 characters)</li>
+<li>Secure bcrypt hashing with 10 salt rounds</li>
+<li>Email uniqueness validation to prevent duplicates</li>
+<li>No plaintext password storage</li>
+<li>Structured error responses with appropriate HTTP status codes</li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="apps_user_controllers_controllers.js.html">apps/user/controllers/controllers.js</a>, <a href="apps_user_controllers_controllers.js.html#line80">line 80</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+    <dt class="tag-see">See:</dt>
+    <dd class="tag-see">
+        <ul>
+            <li><a href="https://www.npmjs.com/package/bcrypt">https://www.npmjs.com/package/bcrypt</a> bcrypt Documentation</li>
+        </ul>
+    </dd>
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="requestPasswordReset"><span class="type-signature">(async) </span>requestPasswordReset<span class="signature">()</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Password reset request controller</p>
+<p>Handles password reset requests by generating secure tokens, storing them with expiration,
+and sending reset emails to users. Implements security measures to prevent email enumeration
+attacks by returning consistent responses regardless of whether the email exists.</p>
+<ul>
+<li>Password reset flow:</li>
+</ul>
+<ol>
+<li>Validates that email is provided in request body</li>
+<li>Searches for user by email in database</li>
+<li>Generates cryptographically secure reset token (32 bytes)</li>
+<li>Stores token and expiration time (1 hour) in user record</li>
+<li>Creates reset URL with frontend domain and token</li>
+<li>Sends HTML email with reset link to user</li>
+<li>Returns success response</li>
+</ol>
+<p><strong>Security Features:</strong></p>
+<ul>
+<li>Uses status 202 for non-existent emails to prevent enumeration</li>
+<li>Generates cryptographically secure tokens using crypto.randomBytes</li>
+<li>Sets 1-hour expiration on reset tokens</li>
+<li>Returns consistent responses regardless of email existence</li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="apps_user_controllers_controllers.js.html">apps/user/controllers/controllers.js</a>, <a href="apps_user_controllers_controllers.js.html#line247">line 247</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+    <dt class="tag-see">See:</dt>
+    <dd class="tag-see">
+        <ul>
+            <li><a href="https://nodejs.org/api/crypto.html#cryptorandombytessize-callback">https://nodejs.org/api/crypto.html#cryptorandombytessize-callback</a> Node.js crypto.randomBytes</li>
+        
+            <li><a href="https://nodemailer.com/">https://nodemailer.com/</a> Nodemailer Documentation</li>
+        </ul>
+    </dd>
+    
+
+    
+    <dt class="tag-todo">To Do:</dt>
+    <dd class="tag-todo">
+        <ul>
+            <li>- Consider hashing tokens before storing in database
+- Implement rate limiting for reset requests per email
+- Add email template system for better maintainability
+- Log security events for monitoring</li>
+        </ul>
+    </dd>
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="resendResetToken"><span class="type-signature">(async) </span>resendResetToken<span class="signature">()</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Resend password reset token controller</p>
+<p>Handles requests to resend password reset tokens when the original token
+has expired, been used, or was not received. Generates a new secure token,
+invalidates any previous tokens, and sends a new reset email. Implements
+security measures to prevent email enumeration attacks.</p>
+<p>Token resend flow:</p>
+<ol>
+<li>Validates that email is provided in request body</li>
+<li>Searches for user by email in database</li>
+<li>Generates new cryptographically secure reset token (32 bytes)</li>
+<li>Updates user record with new token and fresh expiration (1 hour)</li>
+<li>Resets the token usage flag to allow new reset attempts</li>
+<li>Creates new reset URL with frontend domain and new token</li>
+<li>Sends HTML email with new reset link to user</li>
+<li>Handles email sending errors gracefully (continues operation)</li>
+<li>Returns success response (token saved regardless of email status)</li>
+</ol>
+<p><strong>Security Features:</strong></p>
+<ul>
+<li>Returns status 202 for non-existent emails to prevent enumeration</li>
+<li>Generates cryptographically secure tokens using crypto.randomBytes</li>
+<li>Invalidates previous tokens by generating new ones</li>
+<li>Consistent responses regardless of email existence</li>
+<li>Graceful email failure handling (doesn't expose errors to client)</li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="apps_user_controllers_controllers.js.html">apps/user/controllers/controllers.js</a>, <a href="apps_user_controllers_controllers.js.html#line542">line 542</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+    <dt class="tag-see">See:</dt>
+    <dd class="tag-see">
+        <ul>
+            <li><a href="https://nodejs.org/api/crypto.html#cryptorandombytessize-callback">https://nodejs.org/api/crypto.html#cryptorandombytessize-callback</a> Node.js crypto.randomBytes</li>
+        
+            <li><a href="https://nodemailer.com/">https://nodemailer.com/</a> Nodemailer Documentation</li>
+        </ul>
+    </dd>
+    
+
+    
+    <dt class="tag-todo">To Do:</dt>
+    <dd class="tag-todo">
+        <ul>
+            <li>- Implement rate limiting for resend requests per email
+- Add cooldown period between resend attempts
+- Consider email delivery status tracking
+- Add metrics for resend success/failure rates
+- Implement email template system for easier maintenance
+- Add audit logging for security monitoring</li>
+        </ul>
+    </dd>
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="resetPassword"><span class="type-signature">(async) </span>resetPassword<span class="signature">()</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Password reset confirmation controller</p>
+<p>Handles password reset confirmation using a valid reset token. Validates the token,
+checks expiration and usage status, then updates the user's password with proper
+security measures including bcrypt hashing and token invalidation.</p>
+<p>Password reset confirmation flow:</p>
+<ol>
+<li>Validates required fields (token and newPassword)</li>
+<li>Enforces minimum password length (6 characters)</li>
+<li>Searches for user by reset token</li>
+<li>Verifies token hasn't been used previously</li>
+<li>Checks token hasn't expired (within 1 hour)</li>
+<li>Hashes new password with bcrypt (10 salt rounds)</li>
+<li>Updates user password and invalidates reset token</li>
+<li>Marks token as used to prevent reuse</li>
+<li>Returns success response with redirect information</li>
+</ol>
+<p><strong>Security Features:</strong></p>
+<ul>
+<li>Token validation with multiple security checks</li>
+<li>Password strength enforcement (minimum 6 characters)</li>
+<li>One-time token usage prevention</li>
+<li>Secure password hashing with bcrypt</li>
+<li>Complete token cleanup after use</li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="apps_user_controllers_controllers.js.html">apps/user/controllers/controllers.js</a>, <a href="apps_user_controllers_controllers.js.html#line336">line 336</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+    <dt class="tag-see">See:</dt>
+    <dd class="tag-see">
+        <ul>
+            <li><a href="https://www.npmjs.com/package/bcrypt">https://www.npmjs.com/package/bcrypt</a> bcrypt Documentation</li>
+        </ul>
+    </dd>
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="validateResetToken"><span class="type-signature">(async) </span>validateResetToken<span class="signature">()</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Password reset token validation controller</p>
+<p>Validates password reset tokens without performing the actual password reset.
+This endpoint is typically called before displaying the password reset form
+to ensure the token is valid, not expired, and not already used. Provides
+detailed validation responses with error types and user guidance.</p>
+<p>Token validation flow:</p>
+<ol>
+<li>Extracts token from URL parameters</li>
+<li>Validates token parameter is provided</li>
+<li>Searches for user by reset token in database</li>
+<li>Checks if token has been used previously</li>
+<li>Verifies token hasn't expired (within 1 hour)</li>
+<li>Returns validation result with appropriate error types</li>
+<li>Provides user email and expiration info for valid tokens</li>
+</ol>
+<p><strong>Validation States:</strong></p>
+<ul>
+<li><strong>Valid</strong>: Token exists, unused, and not expired</li>
+<li><strong>Missing</strong>: No token provided in request</li>
+<li><strong>Invalid</strong>: Token not found in database</li>
+<li><strong>Used</strong>: Token already consumed for password reset</li>
+<li><strong>Expired</strong>: Token past expiration time (1 hour)</li>
+<li><strong>Server Error</strong>: Database or system error</li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="apps_user_controllers_controllers.js.html">apps/user/controllers/controllers.js</a>, <a href="apps_user_controllers_controllers.js.html#line431">line 431</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+    <dt class="tag-todo">To Do:</dt>
+    <dd class="tag-todo">
+        <ul>
+            <li>- Consider standardizing error message language
+- Add rate limiting for validation attempts
+- Log suspicious validation patterns
+- Consider adding CSRF protection for sensitive operations
+- Add metrics for token validation success rates</li>
+        </ul>
+    </dd>
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#TaskSchema">TaskSchema</a></li><li><a href="global.html#UserSchema">UserSchema</a></li><li><a href="global.html#authMiddleware">authMiddleware</a></li><li><a href="global.html#authenticateToken">authenticateToken</a></li><li><a href="global.html#createEmailTransporter">createEmailTransporter</a></li><li><a href="global.html#createTask">createTask</a></li><li><a href="global.html#getTasksByUser">getTasksByUser</a></li><li><a href="global.html#getUserTasks">getUserTasks</a></li><li><a href="global.html#handleServerError">handleServerError</a></li><li><a href="global.html#login">login</a></li><li><a href="global.html#loginLimiter">loginLimiter</a></li><li><a href="global.html#register">register</a></li><li><a href="global.html#requestPasswordReset">requestPasswordReset</a></li><li><a href="global.html#resendResetToken">resendResetToken</a></li><li><a href="global.html#resetPassword">resetPassword</a></li><li><a href="global.html#validateResetToken">validateResetToken</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Tue Sep 09 2025 16:49:57 GMT-0500 (hora estándar de Colombia)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

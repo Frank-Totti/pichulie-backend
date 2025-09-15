@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: controllers/controllers.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: controllers/controllers.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>const User = require('../models/models');
+const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
+const bcrypt = require('bcrypt');
+require('dotenv').config();
+
+// Helper function for error handling
+/**
+ * Server error handler utility function
+ * 
+ * Centralized error handling function that manages server errors with
+ * environment-aware logging and consistent client responses. Provides
+ * detailed error information in development while maintaining security
+ * in production by hiding sensitive error details.
+ * 
+ * Error handling behavior:
+ * - **Development mode**: Logs full error details including stack trace to console
+ * - **Production mode**: Logs only generic error occurrence without sensitive details
+ * - **Client response**: Always returns generic message to prevent information leakage
+ * - **Error details**: Included in response only in development environment
+ * 
+ * Security:
+ * - Prevents sensitive error information from being exposed to clients in production
+ * - Logs detailed errors only in development for debugging purposes
+ * - Maintains consistent error response structure across all endpoints
+ * 
+ * Performance:
+ * - Minimal overhead as it only performs console logging and JSON response
+ * - Conditional logging based on environment reduces production log noise
+ * 
+ * @see {@link https://expressjs.com/en/guide/error-handling.html} Express Error Handling
+ * @see {@link https://nodejs.org/api/errors.html} Node.js Error Documentation
+ */
+const handleServerError = (error, context, res) => {
+  // Log error details only in development mode
+  if (process.env.NODE_ENV === 'development') {
+    console.error(`${context} error:`, error);
+    console.error('Stack trace:', error.stack);
+  } else {
+    // In production, log only essential info without sensitive details
+    console.error(`${context} error occurred`);
+  }
+  
+  // Always return generic message to users
+  return res.status(500).json({ 
+    success: false,
+    message: 'Try it again later',
+    error: process.env.NODE_ENV === 'development' ? error.message : undefined
+  });
+};
+
+/**
+ * User login controller
+ * 
+ * Authenticates a user by validating email and password credentials.
+ * Generates a JWT token for successful authentication and handles various
+ * authentication failure scenarios including invalid credentials and blocked accounts.
+ * 
+ * Authentication flow:
+ * 1. Extracts email and password from request body
+ * 2. Searches for user by email in database
+ * 3. Validates password using bcrypt comparison
+ * 4. Checks if user account is blocked
+ * 5. Generates JWT token with user ID and email
+ * 6. Returns success response with token and user data (excluding password)
+ * 
+ * @see {@link https://jwt.io/} JWT token specification
+ * @see {@link https://www.npmjs.com/package/bcrypt} bcrypt documentation
+ */
+const login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const user = await User.findOne({ email });
+    
+    // Search for the user email in the database
+    if (!user) return res.status(401).json({ message: 'Invalid user' });  
+
+    // Check if the password matches using bcrypt
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) return res.status(401).json({ message: 'Invalid password' });
+
+    // Check if the user is blocked
+    if (user.isBlocked) return res.status(423).json({mesagge: 'Account temporarily blocked'});
+
+    // Generate a JWT token
+    const token = jwt.sign(
+      { id: user._id, email: user.email },   // payload
+      process.env.JWT_SECRET,                // secret password
+      { expiresIn: '2h' }                    // token's duration
+    );
+
+// If everything is fine, return user data, except for the password
+    res.status(200).json({
+      message: 'Succesful login',
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+      },
+    });
+  } catch (error) {
+    return handleServerError(error, 'Login', res);
+  }
+};
+
+
+// Configure email transporter
+/**
+ * Email transporter factory function
+ * 
+ * Creates and configures a Nodemailer transporter instance for sending emails
+ * through Gmail's SMTP service. Uses environment variables for authentication
+ * credentials to maintain security and configurability across different environments.
+ * 
+ * Configuration details:
+ * - **Service**: Uses Gmail's SMTP service for reliable email delivery
+ * - **Authentication**: Retrieves credentials from environment variables
+ * - **Security**: Credentials are never hardcoded in the application
+ * - **Reusability**: Returns a configured transporter ready for immediate use
+ * 
+ * Security:
+ * - Uses environment variables to protect email credentials
+ * - Requires Gmail app-specific password (more secure than regular password)
+ * - No sensitive information hardcoded in the application
+ * 
+ * @see {@link https://nodemailer.com/} Nodemailer Documentation
+ * @see {@link https://support.google.com/accounts/answer/185833} Gmail App Passwords
+ * @see {@link https://nodemailer.com/smtp/gmail/} Nodemailer Gmail Configuration
+ */
+const createEmailTransporter = () => {
+  return nodemailer.createTransporter({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS
+    }
+  });
+};
+
+// Request password reset
+/**
+ * Password reset request controller
+ * 
+ * Handles password reset requests by generating secure tokens, storing them with expiration,
+ * and sending reset emails to users. Implements security measures to prevent email enumeration
+ * attacks by returning consistent responses regardless of whether the email exists.
+ * 
+ *  * Password reset flow:
+ * 1. Validates that email is provided in request body
+ * 2. Searches for user by email in database
+ * 3. Generates cryptographically secure reset token (32 bytes)
+ * 4. Stores token and expiration time (1 hour) in user record
+ * 5. Creates reset URL with frontend domain and token
+ * 6. Sends HTML email with reset link to user
+ * 7. Returns success response
+ * 
+ * **Security Features:**
+ * - Uses status 202 for non-existent emails to prevent enumeration
+ * - Generates cryptographically secure tokens using crypto.randomBytes
+ * - Sets 1-hour expiration on reset tokens
+ * - Returns consistent responses regardless of email existence
+ * 
+ * @todo
+ * - Consider hashing tokens before storing in database
+ * - Implement rate limiting for reset requests per email
+ * - Add email template system for better maintainability
+ * - Log security events for monitoring
+ * 
+ * @see {@link https://nodejs.org/api/crypto.html#cryptorandombytessize-callback} Node.js crypto.randomBytes
+ * @see {@link https://nodemailer.com/} Nodemailer Documentation
+ */
+const requestPasswordReset = async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+
+    const user = await User.findOne({ email });
+    
+    if (!user) {
+      // Security: Use 202 Accepted with generic response to prevent email enumeration
+      return res.status(202).json({ 
+        success: true,
+        message: 'You will receive a reset link'
+      });
+    }
+
+    // Generate a reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+
+    // Save token and expiration date in the database (1 hour expiration)
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
+    await user.save();
+
+    // Create reset link
+    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset?token=${resetToken}`;
+
+    // Configure email
+    const transporter = createEmailTransporter();
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: user.email,
+      subject: 'Password Reset Request - Pichulie',
+      html: `
+        &lt;h2>Password Reset Request&lt;/h2>
+        &lt;p>Hello ${user.name},&lt;/p>
+        &lt;p>You requested a password reset. Click the link below to reset your password:&lt;/p>
+        &lt;p>&lt;a href="${resetUrl}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Reset Password&lt;/a>&lt;/p>
+        &lt;p>Or copy and paste this link in your browser:&lt;/p>
+        &lt;p>${resetUrl}&lt;/p>
+        &lt;p>This link will expire in 1 hour.&lt;/p>
+        &lt;p>If you didn't request this reset, please ignore this email.&lt;/p>
+        &lt;br>
+        &lt;p>Best regards,&lt;br>Pichulie Team&lt;/p>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.status(200).json({ 
+      success: true,
+      message: 'Reset link sent successfully'
+    });
+
+  } catch (error) {
+    return handleServerError(error, 'Password reset request', res);
+  }
+};
+
+// Confirm reset password with token
+/**
+ * Password reset confirmation controller
+ * 
+ * Handles password reset confirmation using a valid reset token. Validates the token,
+ * checks expiration and usage status, then updates the user's password with proper
+ * security measures including bcrypt hashing and token invalidation.
+ * 
+ * Password reset confirmation flow:
+ * 1. Validates required fields (token and newPassword)
+ * 2. Enforces minimum password length (6 characters)
+ * 3. Searches for user by reset token
+ * 4. Verifies token hasn't been used previously
+ * 5. Checks token hasn't expired (within 1 hour)
+ * 6. Hashes new password with bcrypt (10 salt rounds)
+ * 7. Updates user password and invalidates reset token
+ * 8. Marks token as used to prevent reuse
+ * 9. Returns success response with redirect information
+ * 
+ * **Security Features:**
+ * - Token validation with multiple security checks
+ * - Password strength enforcement (minimum 6 characters)
+ * - One-time token usage prevention
+ * - Secure password hashing with bcrypt
+ * - Complete token cleanup after use
+ * 
+ * @see {@link https://www.npmjs.com/package/bcrypt} bcrypt Documentation
+ */
+const resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({ 
+        message: 'Token and new password are required' 
+      });
+    }
+
+    if (newPassword.length &lt; 6) {
+      return res.status(400).json({ 
+        message: 'Password must be at least 6 characters long' 
+      });
+    }
+
+    // Search for user with the token (check all conditions separately)
+    const user = await User.findOne({ resetPasswordToken: token });
+
+    if (!user) {
+      return res.status(400).json({ 
+        message: 'Invalid reset token' 
+      });
+    }
+
+    // Check if token was already used
+    if (user.resetPasswordUsed) {
+      return res.status(400).json({ 
+        message: 'This reset link has already been used' 
+      });
+    }
+
+    // Check if token expired
+    if (Date.now() > user.resetPasswordExpires) {
+      return res.status(400).json({ 
+        message: 'Reset token has expired' 
+      });
+    }
+
+    // Hash the new password with bcrypt (10 salt rounds)
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+
+    // Update password and mark token as used
+    user.password = hashedPassword;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    user.resetPasswordUsed = true;
+    await user.save();
+
+    res.status(200).json({ 
+      success: true,
+      message: 'Password reset successfully',
+      redirectTo: '/login',
+      redirectDelay: 500 // milliseconds
+    });
+
+  } catch (error) {
+    return handleServerError(error, 'Password reset', res);
+  }
+};
+
+// Validate reset token (without performing the reset yet)
+/**
+ * Password reset token validation controller
+ * 
+ * Validates password reset tokens without performing the actual password reset.
+ * This endpoint is typically called before displaying the password reset form
+ * to ensure the token is valid, not expired, and not already used. Provides
+ * detailed validation responses with error types and user guidance.
+ * 
+ * Token validation flow:
+ * 1. Extracts token from URL parameters
+ * 2. Validates token parameter is provided
+ * 3. Searches for user by reset token in database
+ * 4. Checks if token has been used previously
+ * 5. Verifies token hasn't expired (within 1 hour)
+ * 6. Returns validation result with appropriate error types
+ * 7. Provides user email and expiration info for valid tokens
+ * 
+ * **Validation States:**
+ * - **Valid**: Token exists, unused, and not expired
+ * - **Missing**: No token provided in request
+ * - **Invalid**: Token not found in database
+ * - **Used**: Token already consumed for password reset
+ * - **Expired**: Token past expiration time (1 hour)
+ * - **Server Error**: Database or system error
+ * 
+ * @todo
+ * - Consider standardizing error message language
+ * - Add rate limiting for validation attempts
+ * - Log suspicious validation patterns
+ * - Consider adding CSRF protection for sensitive operations
+ * - Add metrics for token validation success rates
+ */
+const validateResetToken = async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    if (!token) {
+      return res.status(400).json({ 
+        message: 'Token is required',
+        valid: false,
+        errorType: 'missing_token'
+      });
+    }
+
+    // First, find user with this token (regardless of expiration)
+    const user = await User.findOne({ resetPasswordToken: token });
+
+    if (!user) {
+      return res.status(400).json({ 
+        message: 'Enlace inválido o caducado',
+        valid: false,
+        errorType: 'invalid_token',
+        canResend: false
+      });
+    }
+
+    // Check if token was already used
+    if (user.resetPasswordUsed) {
+      return res.status(400).json({ 
+        message: 'Este enlace ya fue utilizado',
+        valid: false,
+        errorType: 'token_used',
+        canResend: true,
+        email: user.email
+      });
+    }
+
+    // Check if token expired
+    if (Date.now() > user.resetPasswordExpires) {
+      return res.status(400).json({ 
+        message: 'Enlace expirado',
+        valid: false,
+        errorType: 'token_expired',
+        canResend: true,
+        email: user.email
+      });
+    }
+
+    // Valid token - return user email for the form
+    res.status(200).json({ 
+      message: 'Token is valid',
+      valid: true,
+      email: user.email,
+      expiresAt: user.resetPasswordExpires
+    });
+
+  } catch (error) {
+    // For validation endpoint
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Token validation error:', error);
+      console.error('Stack trace:', error.stack);
+    } else {
+      console.error('Token validation error occurred');
+    }
+    
+    return res.status(500).json({ 
+      success: false,
+      message: 'Try it again later',
+      valid: false,
+      errorType: 'server_error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+// Resend reset token
+/**
+ * Resend password reset token controller
+ * 
+ * Handles requests to resend password reset tokens when the original token
+ * has expired, been used, or was not received. Generates a new secure token,
+ * invalidates any previous tokens, and sends a new reset email. Implements
+ * security measures to prevent email enumeration attacks.
+ * 
+ * Token resend flow:
+ * 1. Validates that email is provided in request body
+ * 2. Searches for user by email in database
+ * 3. Generates new cryptographically secure reset token (32 bytes)
+ * 4. Updates user record with new token and fresh expiration (1 hour)
+ * 5. Resets the token usage flag to allow new reset attempts
+ * 6. Creates new reset URL with frontend domain and new token
+ * 7. Sends HTML email with new reset link to user
+ * 8. Handles email sending errors gracefully (continues operation)
+ * 9. Returns success response (token saved regardless of email status)
+ * 
+ * **Security Features:**
+ * - Returns status 202 for non-existent emails to prevent enumeration
+ * - Generates cryptographically secure tokens using crypto.randomBytes
+ * - Invalidates previous tokens by generating new ones
+ * - Consistent responses regardless of email existence
+ * - Graceful email failure handling (doesn't expose errors to client)
+ * 
+ * @todo
+ * - Implement rate limiting for resend requests per email
+ * - Add cooldown period between resend attempts
+ * - Consider email delivery status tracking
+ * - Add metrics for resend success/failure rates
+ * - Implement email template system for easier maintenance
+ * - Add audit logging for security monitoring
+ * 
+ * @see {@link https://nodejs.org/api/crypto.html#cryptorandombytessize-callback} Node.js crypto.randomBytes
+ * @see {@link https://nodemailer.com/} Nodemailer Documentation
+ */
+const resendResetToken = async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+
+    const user = await User.findOne({ email });
+    
+    if (!user) {
+      // Security: Use 202 Accepted with generic response to prevent email enumeration
+      return res.status(202).json({ 
+        success: true,
+        message: 'You will receive a reset link',
+        note: 'For security reasons, we do not reveal if the email exists'
+      });
+    }
+
+    // Generate a new reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+
+    // Save new token and expiration date, reset the "used" flag
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
+    user.resetPasswordUsed = false;
+    await user.save();
+
+    // Create reset link "Edit when frontend is ready"
+    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset?token=${resetToken}`;
+
+    // Configure email
+    const transporter = createEmailTransporter();
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: user.email,
+      subject: 'Password Reset Request (Resent) - Pichulie',
+      html: `
+        &lt;h2>Password Reset Request&lt;/h2>
+        &lt;p>Hello ${user.name},&lt;/p>
+        &lt;p>You requested a new password reset link. Click the link below to reset your password:&lt;/p>
+        &lt;p>&lt;a href="${resetUrl}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Reset Password&lt;/a>&lt;/p>
+        &lt;p>Or copy and paste this link in your browser:&lt;/p>
+        &lt;p>${resetUrl}&lt;/p>
+        &lt;p>This link will expire in 1 hour and will replace any previous reset links.&lt;/p>
+        &lt;p>If you didn't request this reset, please ignore this email.&lt;/p>
+        &lt;br>
+        &lt;p>Best regards,&lt;br>Pichulie Team&lt;/p>
+      `
+    };
+
+    try {
+      await transporter.sendMail(mailOptions);
+    } catch (emailError) {
+      console.error('Email sending error:', emailError);
+      // Continue anyway, token was saved
+    }
+
+    res.status(200).json({ 
+      success: true,
+      message: 'Nuevo enlace de restablecimiento enviado correctamente'
+    });
+
+  } catch (error) {
+    return handleServerError(error, 'Resend reset token', res);
+  }
+};
+
+module.exports = { login, logout, requestPasswordReset, resetPassword, validateResetToken, resendResetToken };
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#UserSchema">UserSchema</a></li><li><a href="global.html#createEmailTransporter">createEmailTransporter</a></li><li><a href="global.html#handleServerError">handleServerError</a></li><li><a href="global.html#login">login</a></li><li><a href="global.html#requestPasswordReset">requestPasswordReset</a></li><li><a href="global.html#resendResetToken">resendResetToken</a></li><li><a href="global.html#resetPassword">resetPassword</a></li><li><a href="global.html#validateResetToken">validateResetToken</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Sun Sep 07 2025 22:54:45 GMT-0500 (hora estándar de Colombia)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
