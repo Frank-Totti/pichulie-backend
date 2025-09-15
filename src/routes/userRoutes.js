@@ -1,6 +1,7 @@
 const express = require('express');
-const { login, requestPasswordReset, resetPassword, validateResetToken, resendResetToken, register } = require('../apps/user/controllers/controllers');
+const { login, logout, requestPasswordReset, resetPassword, validateResetToken, resendResetToken, register } = require('../apps/user/controllers/controllers');
 const loginLimiter = require('../apps/user/middlewares/middlewares');
+const { authenticateToken } = require('../middlewares/auth');
 
 const router = express.Router();
 
@@ -12,6 +13,15 @@ const router = express.Router();
  */
 // Login route
 router.post('/login', loginLimiter, login); // LoginTime disable
+
+/**
+ * @route POST /logout
+ * @group Authentication - User authentication operations
+ * @summary User logout endpoint
+ * @description Logs out an authenticated user. Requires valid JWT token.
+ */
+// Logout route
+router.post('/logout', authenticateToken, logout);
 
 /**
  * @route POST /register

@@ -588,4 +588,44 @@ const resendResetToken = async (req, res) => {
   }
 };
 
-module.exports = { login, requestPasswordReset, resetPassword, validateResetToken, resendResetToken, register };
+/**
+ * User logout controller
+ * 
+ * Handles user logout by providing a server-side logout endpoint that can be extended
+ * for additional logout logic such as token blacklisting, session cleanup, or audit logging.
+ * Currently returns a success response to confirm logout action.
+ * 
+ * Logout flow:
+ * 1. Validates that user is authenticated (via middleware)
+ * 2. Returns success response with logout confirmation
+ * 3. Client handles token removal and redirection
+ * 
+ * **Security Features:**
+ * - Requires valid authentication token (via middleware)
+ * - Confirms user identity before logout
+ * - Provides consistent logout response structure
+ * 
+ * **Future enhancements:**
+ * - Token blacklisting for enhanced security
+ * - Session termination for persistent sessions
+ * - Logout event logging and audit trail
+ * 
+ * @see {@link https://jwt.io/} JWT token specification
+ */
+const logout = async (req, res) => {
+  try {
+    // The user is already authenticated via middleware (req.user is populated)
+    
+    res.status(200).json({
+      success: true,
+      message: 'Logout successful',
+      redirectTo: '/login',
+      redirectDelay: 500 // milliseconds
+    });
+
+  } catch (error) {
+    return handleServerError(error, 'Logout', res);
+  }
+};
+
+module.exports = { login, logout, requestPasswordReset, resetPassword, validateResetToken, resendResetToken, register };
