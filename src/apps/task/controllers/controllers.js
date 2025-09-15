@@ -156,20 +156,34 @@ const createTask = async (req, res) => {
   }
 };
 
-/* Nueva Función, Documentar con JDocs también*/
-
+/**
+ * Get tasks by specific date
+ *
+ * Retrieves all tasks for a given user on a specific date.
+ * Validates the provided date, builds a time range from the start
+ * of the day to the start of the next day, and queries the database.
+ *
+ * Flow:
+ * 1. Extracts `user_id` and `task_date` from the request body.
+ * 2. Validates that `task_date` is present and has a valid format.
+ * 3. Builds a date range [start, end) for the specified day.
+ * 4. Fetches tasks matching `user_id` and `task_date` within that range.
+ * 5. Returns the list of tasks or an error if something fails.
+ *
+ * @see {@link https://mongoosejs.com/docs/queries.html} Mongoose Queries
+ */
 const getTasksByDate = async (req, res) => {
   try {
     const { user_id, task_date } = req.body; 
 
     if (!task_date) {
-      return res.status(400).json({ message: "No se recibió task_date" });
+      return res.status(400).json({ message: "task_date was not received" });
     }
 
-    // Aseguramos que siempre sea válido
+    // Ensure it's always valid
     const start = new Date(task_date);
     if (isNaN(start)) {
-      return res.status(400).json({ message: "Formato de fecha inválido" });
+      return res.status(400).json({ message: "Invalid date format" });
     }
 
     const end = new Date(start);
@@ -182,11 +196,10 @@ const getTasksByDate = async (req, res) => {
 
     return res.status(200).json({ tasks });
   } catch (error) {
-    console.error("Error al obtener tareas:", error);
-    return res.status(500).json({ message: "Error al obtener tareas", error });
+    console.error("Error getting tasks:", error);
+    return res.status(500).json({ message: "Error getting tasks", error });
   }
 };
-
 
 /*
 const getTasksByDate = async (req, res) => {
@@ -217,28 +230,41 @@ const getTasksByDate = async (req, res) => {
 };
 */
 
-/* Nueva Función, Documentar con JDocs también*/
-
+/**
+ * Get today's tasks
+ *
+ * Retrieves all tasks for the authenticated user that are scheduled for the current day.
+ * Automatically calculates the time range for "today" in the Bogotá time zone (America/Bogota).
+ *
+ * Flow:
+ * 1. Resolves the user ID from `req.user.id` or `req.body.user_id`.
+ * 2. Validates that a user ID is present.
+ * 3. Computes today's date string and converts it into UTC start/end times.
+ * 4. Queries tasks for the user whose `task_date` falls within the range.
+ * 5. Returns the list of tasks or a 404 if none are found.
+ *
+ * @see {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date} JavaScript Date
+ */
 const getTodayTasks = async (req, res) => {
   try {
-    const userId = req.body?.user_id || req.user?.id; // <- más seguro
+    const userId = req.body?.user_id || req.user?.id; // <- safer approach
 
     if (!userId) {
       return res.status(400).json({ message: "User ID is required." });
     }
 
-    // 1) obtener fecha actual en zona Bogotá
+    // 1) get current date in Bogotá timezone
     const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "America/Bogota" }); // YYYY-MM-DD
 
-    // 2) rango de hoy en UTC
+    // 2) today's range in UTC
     const start = new Date(`${todayStr}T00:00:00.000Z`);
     const end   = new Date(`${todayStr}T23:59:59.999Z`);
 
     console.log("getTodayTasks:", { userId, todayStr, start, end });
 
-    // 3) consulta
+    // 3) query
     const tasks = await Task.find({
-      user_id: userId, // si tu schema es ObjectId, mongoose castea automáticamente
+      user_id: userId,
       task_date: { $gte: start, $lte: end },
     });
 
@@ -248,17 +274,68 @@ const getTodayTasks = async (req, res) => {
 
     return res.status(200).json({ tasks });
   } catch (error) {
-    console.error("Error en getTodayTasks:", error);
+    console.error("Error in getTodayTasks:", error);
     return handleServerError(error, "Get today tasks", res);
   }
 };
 
+/**
+ * Update an existing task
+ *
+ * Updates the fields of a task identified by its `id` parameter.
+ * Validates the existence of the task, ensures required fields are present,
+ * and enforces constraints such as maximum field lengths and non-past dates.
+ *
+ * Flow:
+ * 1. Finds the task by its identifier.
+ * 2. Checks if the task exists and validates required fields.
+ * 3. Verifies maximum length for `title` and `detail`.
+ * 4. Validates that `task_date` is not in the past.
+ * 5. Updates only the provided and valid fields.
+ * 6. Saves the changes and returns a success response.
+ *
+ * @see {@link https://mongoosejs.com/docs/documents.html#updating} Mongoose Document Update
+ */
+const edit = async (req, res) => {
+  try {
+    const {title, detail, status, task_date, remember} = req.body;
+    const task = await Task.findById(req.params.id);
 
+    if (!task) {
+      return res.status(404).json({ message: 'Task not found' });
+    }
+    // Check if all required fields are provided
+    if (!title || !status || !task_date) {
+      return res.status(400).json({ message: "Not all required fields have been entered." })
+    };
+    
+    // Validate field lengths
+    if (title.length > 50) {
+      return res.status(400).json({ message: "Title cannot exceed 50 characters." })
+    };
+    if (detail.length > 500) {
+      return res.status(400).json({ message: "Detail cannot exceed 50 characters." })
+    };
 
+    // Validate task_date is not in the past
+    const today = new Date();
+    if (task_date < today) {
+      return res.status(400).json({ message: "Task date cannot be in the past, must be in the future." });
+    }
 
+    // Updating the fields that were fulfilled and aproved
+    if (title) task.title = title;
+    if (detail) task.detail = detail;
+    if (status && ['to do', 'in process', 'finished'].includes(status)) task.status = status;
+    if (task_date) task.task_date = task_date;
+    if (remember && typeof remember === 'boolean') task.remember = remember;
 
+    await task.save();
+    return res.status(200).json({ message: 'Task updated successfully' });
 
+  } catch (error){
+    return handleServerError(error, 'Update task', res);
+  }
+}
 
-
-
-module.exports = { createTask, getUserTasks, getTasksByDate, getTodayTasks};
+module.exports = { createTask, getUserTasks, getTasksByDate, getTodayTasks, edit };
