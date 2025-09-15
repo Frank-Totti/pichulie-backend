@@ -1,5 +1,6 @@
 const express = require('express');
-const { login, requestPasswordReset, resetPassword, validateResetToken, resendResetToken, register } = require('../apps/user/controllers/controllers');
+const { login, requestPasswordReset, resetPassword, validateResetToken, resendResetToken, register, update } = require('../apps/user/controllers/controllers');
+const { authenticateToken } = require('../middlewares/auth');
 const loginLimiter = require('../apps/user/middlewares/middlewares');
 
 const router = express.Router();
@@ -20,7 +21,15 @@ router.post('/login', loginLimiter, login); // LoginTime disable
  * @description Creates a new user account with provided information.
  */
 //Register route
- router.post('/register', register);
+router.post('/register', register);
+
+/**
+ * @route PUT /update
+ * @group User - User account operations
+ * @summary Update user profile
+ * @description Allows an authenticated user to update their account information. Requires a valid Bearer token.
+ */
+router.put('/update', authenticateToken, update);
 
 // Routes for password reset
 /**
