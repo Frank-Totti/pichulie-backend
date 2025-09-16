@@ -1,7 +1,7 @@
 const express = require('express');
 const { loginLimiter, handleMulterError} = require('../apps/user/middlewares/middlewares');
 const { login, logout, requestPasswordReset, resetPassword, validateResetToken, resendResetToken, register, update, uploadProfilePicture } = require('../apps/user/controllers/controllers');
-const loginLimiter = require('../apps/user/middlewares/middlewares');
+//const loginLimiter = require('../apps/user/middlewares/middlewares');
 const { authenticateToken } = require('../middlewares/auth');
 const { upload } = require('../config/cloudinary');
 
