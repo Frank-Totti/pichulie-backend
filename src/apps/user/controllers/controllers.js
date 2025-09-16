@@ -590,7 +590,7 @@ const resetPassword = async (req, res) => {
 
 // Validate reset token (without performing the reset yet)
 /**
- * Password reset token validation controller
+ * Password reset token validation
  * 
  * Validates password reset tokens without performing the actual password reset.
  * This endpoint is typically called before displaying the password reset form
