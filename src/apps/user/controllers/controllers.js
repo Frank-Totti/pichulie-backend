@@ -151,6 +151,24 @@ const login = async (req, res) => {
   }
 };
 
+const getData = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+
+    return res.status(200).json(
+      {
+        name: user.name,
+        email: user.email,
+        age: user.age,
+        password: '●●●●●●●●●●●●',
+        profile_picture: user.profilePicture.profilePictureURL,
+      }
+    );
+  } catch(error) {
+    return handleServerError(error, 'getData', res);
+  }
+}
+
 /**
  * User update controller
  *
@@ -782,4 +800,4 @@ const logout = async (req, res) => {
   }
 };
 
-module.exports = { login, logout, requestPasswordReset, resetPassword, validateResetToken, resendResetToken, register, update, uploadProfilePicture };
+module.exports = { login, logout, requestPasswordReset, resetPassword, validateResetToken, resendResetToken, register, update, uploadProfilePicture, getData };
