@@ -1,6 +1,5 @@
 const Task = require('../models/models');
 const handleServerError = require('../../../middlewares/errorHandler');
-const mongoose = require('mongoose');
 
 /**
  * Get user tasks controller
@@ -253,6 +252,61 @@ const getTodayTasks = async (req, res) => {
   }
 };
 
+const getTaskById = async (req, res) => {
+  try {
+    const task = await Task.findById(req.params.id);
+
+    if (!task) {
+      return res.status(404).json({ message: 'Task not found' });
+    }
+    
+    return res.status(200).json(task);
+  } catch (error) {
+    return handleServerError(error, 'Get task by id', res);
+  }
+}
+
+const edit = async (req, res) => {
+  try {
+    const {title, detail, status, task_date, remember} = req.body;
+    const task = await Task.findById(req.params.id);
+
+    if (!task) {
+      return res.status(404).json({ message: 'Task not found' });
+    }
+    // Check if all required fields are provided
+    if (!title || !status || !task_date) {
+      return res.status(400).json({ message: "Not all required fields have been entered." })
+    };
+    
+    // Validate field lengths
+    if (title.length > 50) {
+      return res.status(400).json({ message: "Title cannot exceed 50 characters." })
+    };
+    if (detail.length > 500) {
+      return res.status(400).json({ message: "Detail cannot exceed 50 characters." })
+    };
+
+    // Validate task_date is not in the past
+    const today = new Date();
+    if (task_date < today) {
+      return res.status(400).json({ message: "Task date cannot be in the past, must be in the future." });
+    }
+
+    // Updating the fields that were fulfilled and aproved
+    if (title) task.title = title;
+    if (detail) task.detail = detail;
+    if (status && ['to do', 'in process', 'finished'].includes(status)) task.status = status;
+    if (task_date) task.task_date = task_date;
+    if (remember && typeof remember === 'boolean') task.remember = remember;
+
+    await task.save();
+    return res.status(200).json({ message: 'Task updated successfully' });
+
+  } catch (error){
+    return handleServerError(error, 'Update task', res);
+  }
+}
 
 
 
@@ -261,4 +315,6 @@ const getTodayTasks = async (req, res) => {
 
 
 
-module.exports = { createTask, getUserTasks, getTasksByDate, getTodayTasks};
+
+
+module.exports = { createTask, getUserTasks, getTasksByDate, getTodayTasks, edit, getTaskById};

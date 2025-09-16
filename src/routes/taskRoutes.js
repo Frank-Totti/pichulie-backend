@@ -1,5 +1,5 @@
 const express = require('express');
-const { createTask, getUserTasks, getTasksByDate, getTodayTasks } = require('../apps/task/controllers/controllers');
+const { createTask, getUserTasks, getTasksByDate, getTodayTasks, edit, getTaskById} = require('../apps/task/controllers/controllers');
 //const authMiddleware = require('../apps/task/middlewares/middlewares');
 const { authenticateToken } = require('../middlewares/auth');
 
@@ -22,11 +22,33 @@ router.get('/', authenticateToken, getUserTasks);
  */
 router.post('/new', authenticateToken, createTask);
 
-/* Documentar Ruta*/
+/**
+ * @route POST /tasks/by-date
+ * @group Tasks - Task management operations
+ * @summary Get tasks by specific date
+ * @description Retrieves all tasks for the authenticated user scheduled on a given date.
+ * @security JWT
+ */
 router.post('/by-date', authenticateToken, getTasksByDate);
 
-/* Documentar Ruta*/
+/**
+ * @route POST /tasks/today
+ * @group Tasks - Task management operations
+ * @summary Get today's tasks
+ * @description Retrieves all tasks for the authenticated user that are scheduled for today.
+ * @security JWT
+ */
 router.post('/today', authenticateToken, getTodayTasks);
+
+/**
+ * @route PUT /tasks/update
+ * @group Tasks - Task management operations
+ * @summary Update a task
+ * @security JWT
+ */
+router.put('/edit/:id', authenticateToken, edit);
+
+router.get('/get-task/:id',authenticateToken, getTaskById);
 
 
 module.exports = router;

@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const bcrypt = require('bcrypt');
+const { cloudinary } = require('../../../config/cloudinary');
 require('dotenv').config();
 
 /**
@@ -150,6 +151,217 @@ const login = async (req, res) => {
   }
 };
 
+const getData = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+
+    return res.status(200).json(
+      {
+        name: user.name,
+        email: user.email,
+        age: user.age,
+        password: '●●●●●●●●●●●●',
+        profile_picture: user.profilePicture.profilePictureURL,
+      }
+    );
+  } catch(error) {
+    return handleServerError(error, 'getData', res);
+  }
+}
+
+/**
+ * User update controller
+ *
+ * Handles updating an authenticated user's account information, including
+ * email, name, age, and password. Provides validation to ensure data integrity
+ * and account security.
+ *
+ * Update flow:
+ * 1. Retrieves the authenticated user by ID from the JWT payload.
+ * 2. Validates that at least one field is provided for update.
+ * 3. If updating the password, requires both `oldPassword` and `password`.
+ * 4. Ensures email uniqueness to prevent duplicates.
+ * 5. Validates age boundaries (13–122).
+ * 6. Verifies the old password when a password change is requested.
+ * 7. Enforces strong password rules for new passwords:
+ *    - Minimum length: 8 characters
+ *    - Must include uppercase, lowercase, and a number
+ *    - Must differ from the old password
+ * 8. Hashes the new password securely with bcrypt.
+ * 9. Saves only the provided and validated fields to the database.
+ *
+ * **Security Features:**
+ * - Requires authentication via Bearer token.
+ * - Old password verification before allowing password changes.
+ * - Bcrypt hashing for new passwords (10 salt rounds).
+ * - Prevents duplicate emails and invalid ages.
+ *
+ * @see {@link https://www.npmjs.com/package/bcrypt} bcrypt documentation
+ */
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+const update = async (req, res) => {
+  try {
+    const { email, name, age, oldPassword, password } = req.body;
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Al menos 1 campo debe venir (si vienen vacíos o undefined falla)
+    if (!email && !name && !age && !oldPassword && !password) {
+      return res.status(400).json({ message: 'At least one field must be filled' });
+    }
+
+    // Si se intenta cambiar contraseña: ambos campos deben venir
+    if ((oldPassword && !password) || (!oldPassword && password)) {
+      return res.status(400).json({ message: 'To update the password both old and new password are required' });
+    }
+
+    // --- VALIDACIÓN EMAIL ---
+    if (email && String(email).trim() !== '') {
+      const providedEmail = String(email).trim();
+
+      // Si el email proporcionado es exactamente el mismo que el actual (case-insensitive),
+      // saltamos la comprobación de unicidad.
+      const currentEmail = user.email ? String(user.email).trim() : '';
+      if (currentEmail.toLowerCase() !== providedEmail.toLowerCase()) {
+        // buscar caso-insensitive en la DB
+        const existingEmail = await User.findOne({
+          email: { $regex: `^${escapeRegex(providedEmail)}$`, $options: 'i' }
+        });
+
+        // DEBUG temporal (borra o comenta en producción si no quieres logs)
+        // console.log('DEBUG existingEmail:', existingEmail ? existingEmail._id.toString() : null, 'current user id:', user._id.toString());
+
+        if (existingEmail && existingEmail._id && existingEmail._id.toString() !== user._id.toString()) {
+          return res.status(409).json({ message: 'An account with this email already exists' });
+        }
+      }
+      // asignamos el email normalizado (trim) — no forzamos a lowerCase para no romper formato en DB
+      user.email = providedEmail;
+    }
+
+    // --- VALIDACIÓN EDAD ---
+    if (age !== undefined && age !== null && String(age).trim() !== '') {
+      const ageNum = Number(age);
+      if (Number.isNaN(ageNum) || ageNum < 13 || ageNum > 122) {
+        return res.status(400).json({ message: 'Please enter a valid age' });
+      }
+      user.age = ageNum;
+    }
+
+    // --- VALIDACIÓN PASSWORDS ---
+    if (oldPassword) {
+      const isPasswordValid = await bcrypt.compare(oldPassword, user.password);
+      if (!isPasswordValid) {
+        return res.status(401).json({ message: 'Invalid password' });
+      }
+    }
+
+    if (password) {
+      // passwordRegex: al menos una min, una may, y un número
+      const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/;
+
+      // evita que la nueva contraseña sea igual a la vieja (comparamos raw porque oldPassword viene en texto)
+      if (oldPassword && oldPassword === password) {
+        return res.status(400).json({ message: 'New password cannot be the same as the old password' });
+      }
+      if (password.length < 8) {
+        return res.status(400).json({ message: 'New password must be at least 8 characters long' });
+      }
+      if (!passwordRegex.test(password)) {
+        return res.status(400).json({
+          message: 'New password must contain at least one uppercase letter, one lowercase letter, and one number.'
+        });
+      }
+
+      user.password = await bcrypt.hash(password, 10);
+    }
+
+    // --- CAMPOS ADICIONALES ---
+    if (name) user.name = name;
+
+    await user.save();
+
+    // No devolvemos password en la respuesta
+    const safeUser = user.toObject ? user.toObject() : { ...user };
+    delete safeUser.password;
+
+    return res.status(200).json({ message: 'User updated successfully', user: safeUser });
+  } catch (error) {
+    return handleServerError(error, 'Update user', res);
+  }
+};
+
+
+/**
+ * User profile picture upload controller
+ *
+ * Handles uploading or replacing an authenticated user's profile picture.
+ * Integrates with Cloudinary (via `multer-storage-cloudinary`) to store images
+ * and removes the previous picture if it is not the default.
+ *
+ * Upload flow:
+ * 1. Validates that a file is included in the request.
+ * 2. Uses `multer` middleware to automatically upload the file to Cloudinary.
+ * 3. Retrieves the authenticated user from the database.
+ * 4. Checks if the user has a previous profile picture:
+ *    - If not the default, attempts to delete it from Cloudinary.
+ * 5. Updates the user document with the new picture URL and ID.
+ * 6. Saves the user and returns a success response.
+ *
+ * **Security & UX Features:**
+ * - Requires authentication via Bearer token.
+ * - Prevents orphaned images by deleting old pictures (when not default).
+ * - Validates file presence before processing.
+ * - Uses centralized error handling for unexpected failures.
+ *
+ * @see {@link https://cloudinary.com/documentation/node_integration} Cloudinary Node.js SDK
+ * @see {@link https://github.com/expressjs/multer} Multer documentation
+ */
+const uploadProfilePicture = async (req, res) => {
+  try {
+    // Check if file was uploaded
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    // File is automatically uploaded to Cloudinary via multer-storage-cloudinary
+    const result = req.file;
+
+    const user = await User.findById(req.user.id);
+
+    // Store the old profile picture ID before updating
+    const oldProfilePictureID = user.profilePicture.profilePictureID;
+
+    // Delete previous profile picture from cloudinary if not default
+    const isPfpDefault = oldProfilePictureID === 'Global_Profile_Picture_j3ayrk';
+
+    if(!isPfpDefault) {
+      try{
+        await cloudinary.uploader.destroy(oldProfilePictureID);
+      } catch (deleteError) {
+          console.warn('Failed to delete old profile picture:', deleteError);
+      }
+    }
+
+    // Update user profile picture info
+    user.profilePicture.profilePictureURL = result.path;
+    user.profilePicture.profilePictureID = result.filename;
+
+    // Save the user
+    await user.save();
+    return res.status(200).json({ message: 'Profile picture uploaded successfully' });
+
+  } catch (error) {
+    console.error('Upload error:', error);
+    return handleServerError(error, 'Upload user profile picture', res);
+  }
+};
 
 // Configure email transporter
 /**
@@ -588,4 +800,44 @@ const resendResetToken = async (req, res) => {
   }
 };
 
-module.exports = { login, requestPasswordReset, resetPassword, validateResetToken, resendResetToken, register };
+/**
+ * User logout controller
+ * 
+ * Handles user logout by providing a server-side logout endpoint that can be extended
+ * for additional logout logic such as token blacklisting, session cleanup, or audit logging.
+ * Currently returns a success response to confirm logout action.
+ * 
+ * Logout flow:
+ * 1. Validates that user is authenticated (via middleware)
+ * 2. Returns success response with logout confirmation
+ * 3. Client handles token removal and redirection
+ * 
+ * **Security Features:**
+ * - Requires valid authentication token (via middleware)
+ * - Confirms user identity before logout
+ * - Provides consistent logout response structure
+ * 
+ * **Future enhancements:**
+ * - Token blacklisting for enhanced security
+ * - Session termination for persistent sessions
+ * - Logout event logging and audit trail
+ * 
+ * @see {@link https://jwt.io/} JWT token specification
+ */
+const logout = async (req, res) => {
+  try {
+    // The user is already authenticated via middleware (req.user is populated)
+    
+    res.status(200).json({
+      success: true,
+      message: 'Logout successful',
+      redirectTo: '/login',
+      redirectDelay: 500 // milliseconds
+    });
+
+  } catch (error) {
+    return handleServerError(error, 'Logout', res);
+  }
+};
+
+module.exports = { login, logout, requestPasswordReset, resetPassword, validateResetToken, resendResetToken, register, update, uploadProfilePicture, getData };

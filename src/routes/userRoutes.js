@@ -1,6 +1,9 @@
 const express = require('express');
-const { login, requestPasswordReset, resetPassword, validateResetToken, resendResetToken, register } = require('../apps/user/controllers/controllers');
-const loginLimiter = require('../apps/user/middlewares/middlewares');
+const { loginLimiter, handleMulterError} = require('../apps/user/middlewares/middlewares');
+const { login, logout, requestPasswordReset, resetPassword, validateResetToken, resendResetToken, register, update, uploadProfilePicture, getData } = require('../apps/user/controllers/controllers');
+//const loginLimiter = require('../apps/user/middlewares/middlewares');
+const { authenticateToken } = require('../middlewares/auth');
+const { upload } = require('../config/cloudinary');
 
 const router = express.Router();
 
@@ -14,13 +17,40 @@ const router = express.Router();
 router.post('/login', loginLimiter, login); // LoginTime disable
 
 /**
+ * @route POST /logout
+ * @group Authentication - User authentication operations
+ * @summary User logout endpoint
+ * @description Logs out an authenticated user. Requires valid JWT token.
+ */
+// Logout route
+router.post('/logout', authenticateToken, logout);
+
+/**
  * @route POST /register
  * @group Authentication - User authentication operations
  * @summary User registration endpoint
  * @description Creates a new user account with provided information.
  */
 //Register route
- router.post('/register', register);
+router.post('/register', register);
+
+router.get('/get-info', authenticateToken, getData);
+
+/**
+ * @route PUT /update
+ * @group User - User account operations
+ * @summary Update user profile
+ * @description Allows an authenticated user to update their account information. Requires a valid Bearer token.
+ */
+router.put('/update', authenticateToken, update);
+
+/**
+ * @route PUT /upload-pfp
+ * @group User - User account operations
+ * @summary Upload user profile picture
+ * @description Allows an authenticated user to upload or replace their profile picture.
+ */
+router.put('/upload-pfp', authenticateToken, upload.single('profilePicture'), handleMulterError, uploadProfilePicture);
 
 // Routes for password reset
 /**
