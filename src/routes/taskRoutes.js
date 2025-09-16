@@ -1,5 +1,5 @@
 const express = require('express');
-const { createTask, getUserTasks, getTasksByDate, getTodayTasks, edit} = require('../apps/task/controllers/controllers');
+const { createTask, getUserTasks, getTasksByDate, getTodayTasks, edit, getTaskById} = require('../apps/task/controllers/controllers');
 //const authMiddleware = require('../apps/task/middlewares/middlewares');
 const { authenticateToken } = require('../middlewares/auth');
 
@@ -47,6 +47,8 @@ router.post('/today', authenticateToken, getTodayTasks);
  * @security JWT
  */
 router.put('/edit/:id', authenticateToken, edit);
+
+router.get('/get-task/:id',authenticateToken, getTaskById);
 
 
 module.exports = router;

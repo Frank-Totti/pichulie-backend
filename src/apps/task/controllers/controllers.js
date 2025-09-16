@@ -252,6 +252,20 @@ const getTodayTasks = async (req, res) => {
   }
 };
 
+const getTaskById = async (req, res) => {
+  try {
+    const task = await Task.findById(req.params.id);
+
+    if (!task) {
+      return res.status(404).json({ message: 'Task not found' });
+    }
+    
+    return res.status(200).json(task);
+  } catch (error) {
+    return handleServerError(error, 'Get task by id', res);
+  }
+}
+
 const edit = async (req, res) => {
   try {
     const {title, detail, status, task_date, remember} = req.body;
@@ -303,4 +317,4 @@ const edit = async (req, res) => {
 
 
 
-module.exports = { createTask, getUserTasks, getTasksByDate, getTodayTasks, edit};
+module.exports = { createTask, getUserTasks, getTasksByDate, getTodayTasks, edit, getTaskById};
