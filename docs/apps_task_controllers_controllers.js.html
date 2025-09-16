@@ -27,48 +27,8 @@
     <section>
         <article>
             <pre class="prettyprint source linenums"><code>const Task = require('../models/models');
-
-// Helper function for error handling
-/**
- * Server error handler utility function
- * 
- * Centralized error handling function that manages server errors with
- * environment-aware logging and consistent client responses. Provides
- * detailed error information in development while maintaining security
- * in production by hiding sensitive error details.
- * 
- * Error handling behavior:
- * - **Development mode**: Logs full error details including stack trace to console
- * - **Production mode**: Logs only generic error occurrence without sensitive details
- * - **Client response**: Always returns generic message to prevent information leakage
- * - **Error details**: Included in response only in development environment
- * 
- * Security:
- * - Prevents sensitive error information from being exposed to clients in production
- * - Logs detailed errors only in development for debugging purposes
- * - Maintains consistent error response structure across all endpoints
- * 
- * Performance:
- * - Minimal overhead as it only performs console logging and JSON response
- * - Conditional logging based on environment reduces production log noise
- * 
- * @see {@link https://expressjs.com/en/guide/error-handling.html} Express Error Handling
- * @see {@link https://nodejs.org/api/errors.html} Node.js Error Documentation
- */
-const handleServerError = (error, context, res) => {
-  if (process.env.NODE_ENV === 'development') {
-    console.error(`${context} error:`, error);
-    console.error('Stack trace:', error.stack);
-  } else {
-    console.error(`${context} error occurred`);
-  }
-  
-  return res.status(500).json({ 
-    success: false,
-    message: 'Try it again later',
-    error: process.env.NODE_ENV === 'development' ? error.message : undefined
-  });
-};
+const handleServerError = require('../../../middlewares/errorHandler');
+const mongoose = require('mongoose');
 
 /**
  * Get user tasks controller
@@ -184,78 +144,229 @@ const getUserTasks = async (req, res) => {
  * @see {@link https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/201} HTTP 201 Created
  */
 const createTask = async (req, res) => {
+  console.log("Request body:", req.body);
+  console.log("User:", req.user);
+  console.log("Headers recibidos:", req.headers);
+  console.log("Authorization header:", req.headers.authorization);
   try {
     const { title, detail, status, task_date } = req.body;
+
+    if (!title || !status || !task_date) {
+      return res.status(400).json({ message: "Not all required fields have been entered." })
+    };
+
+    if (title.length > 50) {
+      return res.status(400).json({ message: "Title cannot exceed 50 characters." })
+    };
+
+    if (detail.length > 500) {
+      return res.status(400).json({ message: "Detail cannot exceed 50 characters." })
+    };
 
     const newTask = new Task({
       title,
       detail,
       status,
-      task_date,
+      task_date,//: new Date(task_date),
       user_id: req.user.id,
     });
 
-    await newTask.save();
-
+    console.log('RAW req.body.status:', JSON.stringify(req.body.status));
+    const savedTask = await newTask.save();
     res.status(201).json({
-      message: `Task created successfully with id: ${newTask.id}`,
-      task: newTask,
+      message: `Task created successfully with id: ${savedTask.id}`,
+      task: savedTask,
     });
   } catch (error) {
-    if (process.env.NODE_ENV === 'development') {
-      console.error('Task creation error:', error);
-    }
-    res.status(500).json({ message: 'Try again later' });
+    //return handleServerError(error, 'Create user task', res);
+    console.error("Error real al guardar la tarea:", error);
+    res.status(500).json({ message: "Error al crear tarea", error: error.message });
   }
 };
 
 /**
- * Get tasks by user with grouping controller
- * 
- * Retrieves all tasks for the authenticated user, sorts them by specified criteria,
- * and groups them by status for organized display. Provides a structured view
- * of user tasks organized by their current status with flexible sorting options.
- * 
- * Task retrieval and grouping flow:
- * 1. Determines sort criteria from query parameter (title or task_date)
- * 2. Retrieves all tasks for authenticated user with sorting applied
- * 3. Groups tasks by status using Array.reduce method
- * 4. Creates organized structure with tasks categorized by status
- * 5. Returns grouped tasks in structured response format
- * 6. Handles errors with environment-aware logging
- * 
- * @see {@link https://docs.mongodb.com/manual/reference/method/cursor.sort/} MongoDB Sort Documentation
- * @see {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/Reduce} Array.reduce() Documentation
- * @see {@link https://mongoosejs.com/docs/api.html#query_Query-sort} Mongoose Sort Documentation
+ * Get tasks by specific date
+ *
+ * Retrieves all tasks for a given user on a specific date.
+ * Validates the provided date, builds a time range from the start
+ * of the day to the start of the next day, and queries the database.
+ *
+ * Flow:
+ * 1. Extracts `user_id` and `task_date` from the request body.
+ * 2. Validates that `task_date` is present and has a valid format.
+ * 3. Builds a date range [start, end) for the specified day.
+ * 4. Fetches tasks matching `user_id` and `task_date` within that range.
+ * 5. Returns the list of tasks or an error if something fails.
+ *
+ * @see {@link https://mongoosejs.com/docs/queries.html} Mongoose Queries
  */
-const getTasksByUser = async (req, res) => {
+const getTasksByDate = async (req, res) => {
   try {
-    // Sort by title by default and by title if specified
-    const sortBy = req.query.sort === 'title' ? { title: 1 } : { task_date: 1 };
+    const { user_id, task_date } = req.body; 
 
-    // Find tasks by the user and sort them
-    const tasks = await Task.find({ user_id: req.user.id }).sort(sortBy);
+    if (!task_date) {
+      return res.status(400).json({ message: "task_date was not received" });
+    }
 
-    // Group by status
-    const grouped = tasks.reduce((acc, task) => {
-      if (!acc[task.status]) acc[task.status] = [];
+    // Ensure it's always valid
+    const start = new Date(task_date);
+    if (isNaN(start)) {
+      return res.status(400).json({ message: "Invalid date format" });
+    }
 
-      acc[task.status].push(task);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
 
-      return acc;
-    }, {});
-
-    res.status(200).json({
-      message: 'Tasks grouped by status',
-      tasks: grouped,
+    const tasks = await Task.find({
+      user_id,
+      task_date: { $gte: start, $lt: end }
     });
+
+    return res.status(200).json({ tasks });
   } catch (error) {
-    if (process.env.NODE_ENV === 'development') console.error('Get tasks error:', error);
-    res.status(500).json({ message: 'Try again later' });
+    console.error("Error getting tasks:", error);
+    return res.status(500).json({ message: "Error getting tasks", error });
   }
 };
 
-module.exports = { createTask, getTasksByUser, getUserTasks };
+/*
+const getTasksByDate = async (req, res) => {
+  console.log("Request body:", req.body);
+  console.log("User:", req.user);
+  console.log("Headers recibidos:", req.headers);
+  console.log("Authorization header:", req.headers.authorization);
+  try {
+    const { user_id, task_date } = req.body;
+
+    if (!user_id || !task_date) {
+      return res.status(400).json({ message: "User ID and task_date are required." });
+    }
+
+    const tasks = await Task.find({
+      user_id: user_id,
+      task_date: task_date
+    });
+
+    //if (tasks.length === 0) {
+      //return res.status(404).json({ message: "No tasks found for the given user and date." });
+    //}
+
+    res.status(200).json({ tasks });
+  } catch (error) {
+    return handleServerError(error, 'Get tasks by date', res);
+  }
+};
+*/
+
+/**
+ * Get today's tasks
+ *
+ * Retrieves all tasks for the authenticated user that are scheduled for the current day.
+ * Automatically calculates the time range for "today" in the Bogotá time zone (America/Bogota).
+ *
+ * Flow:
+ * 1. Resolves the user ID from `req.user.id` or `req.body.user_id`.
+ * 2. Validates that a user ID is present.
+ * 3. Computes today's date string and converts it into UTC start/end times.
+ * 4. Queries tasks for the user whose `task_date` falls within the range.
+ * 5. Returns the list of tasks or a 404 if none are found.
+ *
+ * @see {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date} JavaScript Date
+ */
+const getTodayTasks = async (req, res) => {
+  try {
+    const userId = req.body?.user_id || req.user?.id; // &lt;- safer approach
+
+    if (!userId) {
+      return res.status(400).json({ message: "User ID is required." });
+    }
+
+    // 1) get current date in Bogotá timezone
+    const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "America/Bogota" }); // YYYY-MM-DD
+
+    // 2) today's range in UTC
+    const start = new Date(`${todayStr}T00:00:00.000Z`);
+    const end   = new Date(`${todayStr}T23:59:59.999Z`);
+
+    console.log("getTodayTasks:", { userId, todayStr, start, end });
+
+    // 3) query
+    const tasks = await Task.find({
+      user_id: userId,
+      task_date: { $gte: start, $lte: end },
+    });
+
+    if (!tasks || tasks.length === 0) {
+      return res.status(404).json({ message: "No tasks found for today." });
+    }
+
+    return res.status(200).json({ tasks });
+  } catch (error) {
+    console.error("Error in getTodayTasks:", error);
+    return handleServerError(error, "Get today tasks", res);
+  }
+};
+
+/**
+ * Update an existing task
+ *
+ * Updates the fields of a task identified by its `id` parameter.
+ * Validates the existence of the task, ensures required fields are present,
+ * and enforces constraints such as maximum field lengths and non-past dates.
+ *
+ * Flow:
+ * 1. Finds the task by its identifier.
+ * 2. Checks if the task exists and validates required fields.
+ * 3. Verifies maximum length for `title` and `detail`.
+ * 4. Validates that `task_date` is not in the past.
+ * 5. Updates only the provided and valid fields.
+ * 6. Saves the changes and returns a success response.
+ *
+ * @see {@link https://mongoosejs.com/docs/documents.html#updating} Mongoose Document Update
+ */
+const edit = async (req, res) => {
+  try {
+    const {title, detail, status, task_date, remember} = req.body;
+    const task = await Task.findById(req.params.id);
+
+    if (!task) {
+      return res.status(404).json({ message: 'Task not found' });
+    }
+    // Check if all required fields are provided
+    if (!title || !status || !task_date) {
+      return res.status(400).json({ message: "Not all required fields have been entered." })
+    };
+    
+    // Validate field lengths
+    if (title.length > 50) {
+      return res.status(400).json({ message: "Title cannot exceed 50 characters." })
+    };
+    if (detail.length > 500) {
+      return res.status(400).json({ message: "Detail cannot exceed 50 characters." })
+    };
+
+    // Validate task_date is not in the past
+    const today = new Date();
+    if (task_date &lt; today) {
+      return res.status(400).json({ message: "Task date cannot be in the past, must be in the future." });
+    }
+
+    // Updating the fields that were fulfilled and aproved
+    if (title) task.title = title;
+    if (detail) task.detail = detail;
+    if (status &amp;&amp; ['to do', 'in process', 'finished'].includes(status)) task.status = status;
+    if (task_date) task.task_date = task_date;
+    if (remember &amp;&amp; typeof remember === 'boolean') task.remember = remember;
+
+    await task.save();
+    return res.status(200).json({ message: 'Task updated successfully' });
+
+  } catch (error){
+    return handleServerError(error, 'Update task', res);
+  }
+}
+
+module.exports = { createTask, getUserTasks, getTasksByDate, getTodayTasks, edit };
 </code></pre>
         </article>
     </section>
@@ -266,13 +377,13 @@ module.exports = { createTask, getTasksByUser, getUserTasks };
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#TaskSchema">TaskSchema</a></li><li><a href="global.html#UserSchema">UserSchema</a></li><li><a href="global.html#authMiddleware">authMiddleware</a></li><li><a href="global.html#authenticateToken">authenticateToken</a></li><li><a href="global.html#createEmailTransporter">createEmailTransporter</a></li><li><a href="global.html#createTask">createTask</a></li><li><a href="global.html#getTasksByUser">getTasksByUser</a></li><li><a href="global.html#getUserTasks">getUserTasks</a></li><li><a href="global.html#handleServerError">handleServerError</a></li><li><a href="global.html#login">login</a></li><li><a href="global.html#loginLimiter">loginLimiter</a></li><li><a href="global.html#register">register</a></li><li><a href="global.html#requestPasswordReset">requestPasswordReset</a></li><li><a href="global.html#resendResetToken">resendResetToken</a></li><li><a href="global.html#resetPassword">resetPassword</a></li><li><a href="global.html#validateResetToken">validateResetToken</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#TaskSchema">TaskSchema</a></li><li><a href="global.html#UserSchema">UserSchema</a></li><li><a href="global.html#auth">auth</a></li><li><a href="global.html#authenticateToken">authenticateToken</a></li><li><a href="global.html#createEmailTransporter">createEmailTransporter</a></li><li><a href="global.html#createTask">createTask</a></li><li><a href="global.html#edit">edit</a></li><li><a href="global.html#getTasksByDate">getTasksByDate</a></li><li><a href="global.html#getTodayTasks">getTodayTasks</a></li><li><a href="global.html#getUserTasks">getUserTasks</a></li><li><a href="global.html#globalErrorHandler">globalErrorHandler</a></li><li><a href="global.html#login">login</a></li><li><a href="global.html#loginLimiter">loginLimiter</a></li><li><a href="global.html#register">register</a></li><li><a href="global.html#requestPasswordReset">requestPasswordReset</a></li><li><a href="global.html#resendResetToken">resendResetToken</a></li><li><a href="global.html#resetPassword">resetPassword</a></li><li><a href="global.html#validateResetToken">validateResetToken</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Tue Sep 09 2025 16:49:57 GMT-0500 (hora estándar de Colombia)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Tue Sep 16 2025 00:14:06 GMT-0500 (hora estándar de Colombia)
 </footer>
 
 <script> prettyPrint(); </script>

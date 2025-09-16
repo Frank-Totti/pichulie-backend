@@ -21,20 +21,6 @@ const User = require('../apps/user/models/models');
  * - `423 Locked` if the account is blocked
  * - `500 Internal Server Error` if an unexpected error occurs
  *
- * @async
- * @function authenticateToken
- * @param {import('express').Request} req - Express request object
- * @param {import('express').Response} res - Express response object
- * @param {import('express').NextFunction} next - Express next middleware function
- * @returns {Promise<void>} Sends appropriate JSON response or calls `next()`
- *
- * @example
- * // Apply to a protected route
- * const { authenticateToken } = require('./middlewares/authMiddleware');
- *
- * app.get('/api/tasks', authenticateToken, (req, res) => {
- *   res.json({ message: `Hello ${req.user.name}, your tasks go here.` });
- * });
  */
 const authenticateToken = async (req, res, next) => {
   try {

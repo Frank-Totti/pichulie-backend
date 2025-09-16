@@ -20,9 +20,6 @@ const jwt = require("jsonwebtoken");
  * @see {@link https://www.npmjs.com/package/jsonwebtoken} jsonwebtoken Library
  * @see {@link https://tools.ietf.org/html/rfc6750} Bearer Token RFC
  */
-
-const jwt = require("jsonwebtoken");
-
 const auth = (req, res, next) => {
   const authHeader = req.headers["authorization"];
   if (!authHeader) {

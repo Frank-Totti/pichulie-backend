@@ -27,56 +27,12 @@
     <section>
         <article>
             <pre class="prettyprint source linenums"><code>const User = require('../models/models');
+const handleServerError = require('../../../middlewares/errorHandler');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const bcrypt = require('bcrypt');
 require('dotenv').config();
-
-// Helper function for error handling
-/**
- * Server error handler utility function
- * 
- * Centralized error handling function that manages server errors with
- * environment-aware logging and consistent client responses. Provides
- * detailed error information in development while maintaining security
- * in production by hiding sensitive error details.
- * 
- * Error handling behavior:
- * - **Development mode**: Logs full error details including stack trace to console
- * - **Production mode**: Logs only generic error occurrence without sensitive details
- * - **Client response**: Always returns generic message to prevent information leakage
- * - **Error details**: Included in response only in development environment
- * 
- * Security:
- * - Prevents sensitive error information from being exposed to clients in production
- * - Logs detailed errors only in development for debugging purposes
- * - Maintains consistent error response structure across all endpoints
- * 
- * Performance:
- * - Minimal overhead as it only performs console logging and JSON response
- * - Conditional logging based on environment reduces production log noise
- * 
- * @see {@link https://expressjs.com/en/guide/error-handling.html} Express Error Handling
- * @see {@link https://nodejs.org/api/errors.html} Node.js Error Documentation
- */
-const handleServerError = (error, context, res) => {
-  // Log error details only in development mode
-  if (process.env.NODE_ENV === 'development') {
-    console.error(`${context} error:`, error);
-    console.error('Stack trace:', error.stack);
-  } else {
-    // In production, log only essential info without sensitive details
-    console.error(`${context} error occurred`);
-  }
-  
-  // Always return generic message to users
-  return res.status(500).json({ 
-    success: false,
-    message: 'Try it again later',
-    error: process.env.NODE_ENV === 'development' ? error.message : undefined
-  });
-};
 
 /**
  * User registration controller
@@ -118,10 +74,25 @@ const register = async (req, res) => {
       return res.status(400).json({ message: 'Not all fields have been entered.' });
     }
 
-    //Checking password length and match
-    if (password.length &lt; 6) {
-      return res.status(400).json({ message: 'Password must be at least 6 characters long' });
+    // Cheking age limits
+    if (age &lt; 13) {
+      return res.status(400).json({ message: 'You must be at least 13 years old to register' });
     }
+
+    if (age > 122) {
+      return res.status(400).json({ message: 'Please enter a valid age' });
+    }
+
+    //Checking password length and match
+    if (password.length &lt; 8) {
+      return res.status(400).json({ message: 'Password must be at least 8 characters long' });
+    }
+
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/;
+    if (!passwordRegex.test(password)) {
+      return res.status(400).json({ message: 'Password must contain at least one uppercase letter, one lowercase letter, and one number.' });
+    }
+
     if (password !== passwordCheck) {
       return res.status(400).json({ message: 'Passwords do not match. Please try again' });
     }
@@ -201,6 +172,7 @@ const login = async (req, res) => {
         email: user.email,
       },
     });
+    //console.log(user.name)
   } catch (error) {
     return handleServerError(error, 'Login', res);
   }
@@ -231,7 +203,7 @@ const login = async (req, res) => {
  * @see {@link https://nodemailer.com/smtp/gmail/} Nodemailer Gmail Configuration
  */
 const createEmailTransporter = () => {
-  return nodemailer.createTransporter({
+  return nodemailer.createTransport({
     service: 'gmail',
     auth: {
       user: process.env.EMAIL_USER,
@@ -296,13 +268,14 @@ const requestPasswordReset = async (req, res) => {
     // Save token and expiration date in the database (1 hour expiration)
     user.resetPasswordToken = resetToken;
     user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
+    user.resetPasswordUsed = false;
     await user.save();
 
     // Create reset link
-    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset?token=${resetToken}`;
+    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/src/new-password/new.password.html?token=${resetToken}`;
 
     // Configure email
-    const transporter = createEmailTransporter();
+    const transporter = createEmailTransporter();//createEmailTransporter();
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: user.email,
@@ -329,6 +302,7 @@ const requestPasswordReset = async (req, res) => {
     });
 
   } catch (error) {
+    console.error("Error al enviar el correo:", error);
     return handleServerError(error, 'Password reset request', res);
   }
 };
@@ -371,10 +345,17 @@ const resetPassword = async (req, res) => {
       });
     }
 
-    if (newPassword.length &lt; 6) {
+    if (newPassword.length &lt; 8) {
       return res.status(400).json({ 
-        message: 'Password must be at least 6 characters long' 
+        message: 'Password must be at least 8 characters long' 
       });
+    }
+
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/;
+    if (!passwordRegex.test(newPassword)) {
+      return res.status(400).json({ 
+        message: 'Password must contain at least one uppercase letter, one lowercase letter, and one number.' 
+     });
     }
 
     // Search for user with the token (check all conditions separately)
@@ -635,8 +616,7 @@ const resendResetToken = async (req, res) => {
   }
 };
 
-module.exports = { login, requestPasswordReset, resetPassword, validateResetToken, resendResetToken, register };
-</code></pre>
+module.exports = { login, requestPasswordReset, resetPassword, validateResetToken, resendResetToken, register };</code></pre>
         </article>
     </section>
 
@@ -646,13 +626,13 @@ module.exports = { login, requestPasswordReset, resetPassword, validateResetToke
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#TaskSchema">TaskSchema</a></li><li><a href="global.html#UserSchema">UserSchema</a></li><li><a href="global.html#authMiddleware">authMiddleware</a></li><li><a href="global.html#authenticateToken">authenticateToken</a></li><li><a href="global.html#createEmailTransporter">createEmailTransporter</a></li><li><a href="global.html#createTask">createTask</a></li><li><a href="global.html#getTasksByUser">getTasksByUser</a></li><li><a href="global.html#getUserTasks">getUserTasks</a></li><li><a href="global.html#handleServerError">handleServerError</a></li><li><a href="global.html#login">login</a></li><li><a href="global.html#loginLimiter">loginLimiter</a></li><li><a href="global.html#register">register</a></li><li><a href="global.html#requestPasswordReset">requestPasswordReset</a></li><li><a href="global.html#resendResetToken">resendResetToken</a></li><li><a href="global.html#resetPassword">resetPassword</a></li><li><a href="global.html#validateResetToken">validateResetToken</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#TaskSchema">TaskSchema</a></li><li><a href="global.html#UserSchema">UserSchema</a></li><li><a href="global.html#auth">auth</a></li><li><a href="global.html#authenticateToken">authenticateToken</a></li><li><a href="global.html#createEmailTransporter">createEmailTransporter</a></li><li><a href="global.html#createTask">createTask</a></li><li><a href="global.html#edit">edit</a></li><li><a href="global.html#getTasksByDate">getTasksByDate</a></li><li><a href="global.html#getTodayTasks">getTodayTasks</a></li><li><a href="global.html#getUserTasks">getUserTasks</a></li><li><a href="global.html#globalErrorHandler">globalErrorHandler</a></li><li><a href="global.html#login">login</a></li><li><a href="global.html#loginLimiter">loginLimiter</a></li><li><a href="global.html#register">register</a></li><li><a href="global.html#requestPasswordReset">requestPasswordReset</a></li><li><a href="global.html#resendResetToken">resendResetToken</a></li><li><a href="global.html#resetPassword">resetPassword</a></li><li><a href="global.html#validateResetToken">validateResetToken</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Tue Sep 09 2025 16:49:57 GMT-0500 (hora estándar de Colombia)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Tue Sep 16 2025 00:14:06 GMT-0500 (hora estándar de Colombia)
 </footer>
 
 <script> prettyPrint(); </script>
