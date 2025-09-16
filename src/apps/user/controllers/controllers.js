@@ -198,65 +198,105 @@ const getData = async (req, res) => {
  *
  * @see {@link https://www.npmjs.com/package/bcrypt} bcrypt documentation
  */
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 const update = async (req, res) => {
   try {
-    const {email, name, age, oldPassword, password} = req.body;
+    const { email, name, age, oldPassword, password } = req.body;
     const user = await User.findById(req.user.id);
 
-    // Check if is any field filled
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Al menos 1 campo debe venir (si vienen vacíos o undefined falla)
     if (!email && !name && !age && !oldPassword && !password) {
       return res.status(400).json({ message: 'At least one field must be filled' });
-    } 
+    }
 
-    // If the user wants to update the password, both old and new password must be provided
-    if (!oldPassword ^ !password) {
+    // Si se intenta cambiar contraseña: ambos campos deben venir
+    if ((oldPassword && !password) || (!oldPassword && password)) {
       return res.status(400).json({ message: 'To update the password both old and new password are required' });
     }
 
-    // Verify if email already exists to prevent duplicates
-    const existingEmail = await User.findOne({ email });
-    if (existingEmail) {
-      return res.status(409).json({ message: 'An account with this email already exists'});
+    // --- VALIDACIÓN EMAIL ---
+    if (email && String(email).trim() !== '') {
+      const providedEmail = String(email).trim();
+
+      // Si el email proporcionado es exactamente el mismo que el actual (case-insensitive),
+      // saltamos la comprobación de unicidad.
+      const currentEmail = user.email ? String(user.email).trim() : '';
+      if (currentEmail.toLowerCase() !== providedEmail.toLowerCase()) {
+        // buscar caso-insensitive en la DB
+        const existingEmail = await User.findOne({
+          email: { $regex: `^${escapeRegex(providedEmail)}$`, $options: 'i' }
+        });
+
+        // DEBUG temporal (borra o comenta en producción si no quieres logs)
+        // console.log('DEBUG existingEmail:', existingEmail ? existingEmail._id.toString() : null, 'current user id:', user._id.toString());
+
+        if (existingEmail && existingEmail._id && existingEmail._id.toString() !== user._id.toString()) {
+          return res.status(409).json({ message: 'An account with this email already exists' });
+        }
+      }
+      // asignamos el email normalizado (trim) — no forzamos a lowerCase para no romper formato en DB
+      user.email = providedEmail;
     }
 
-    // Cheking age limits
-    if (age && (age < 13 || age > 122)) {
-      return res.status(400).json({ message: 'Please enter a valid age' });
+    // --- VALIDACIÓN EDAD ---
+    if (age !== undefined && age !== null && String(age).trim() !== '') {
+      const ageNum = Number(age);
+      if (Number.isNaN(ageNum) || ageNum < 13 || ageNum > 122) {
+        return res.status(400).json({ message: 'Please enter a valid age' });
+      }
+      user.age = ageNum;
     }
 
-    // Check if the old password matches using bcrypt
+    // --- VALIDACIÓN PASSWORDS ---
     if (oldPassword) {
       const isPasswordValid = await bcrypt.compare(oldPassword, user.password);
-      if (!isPasswordValid) return res.status(401).json({ message: 'Invalid password' });
+      if (!isPasswordValid) {
+        return res.status(401).json({ message: 'Invalid password' });
+      }
     }
 
-    //Checking new password length and match
     if (password) {
+      // passwordRegex: al menos una min, una may, y un número
       const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/;
-      if (oldPassword === password) {
-        return res.status(400).json({ message: 'New password can not be the same as the old password'});
+
+      // evita que la nueva contraseña sea igual a la vieja (comparamos raw porque oldPassword viene en texto)
+      if (oldPassword && oldPassword === password) {
+        return res.status(400).json({ message: 'New password cannot be the same as the old password' });
       }
       if (password.length < 8) {
         return res.status(400).json({ message: 'New password must be at least 8 characters long' });
       }
       if (!passwordRegex.test(password)) {
-        return res.status(400).json({ message: 'New password must contain at least one uppercase letter, one lowercase letter, and one number.' });
+        return res.status(400).json({
+          message: 'New password must contain at least one uppercase letter, one lowercase letter, and one number.'
+        });
       }
+
+      user.password = await bcrypt.hash(password, 10);
     }
-    
-    // Updating the fields that were fulfilled and aproved
-    if (email) user.email = email;
+
+    // --- CAMPOS ADICIONALES ---
     if (name) user.name = name;
-    if (age) user.age = age;
-    if (password) user.password = await bcrypt.hash(password, 10);
 
     await user.save();
-    return res.status(200).json({ message: 'User updated successfully' });
 
-  } catch (error){
+    // No devolvemos password en la respuesta
+    const safeUser = user.toObject ? user.toObject() : { ...user };
+    delete safeUser.password;
+
+    return res.status(200).json({ message: 'User updated successfully', user: safeUser });
+  } catch (error) {
     return handleServerError(error, 'Update user', res);
   }
 };
+
 
 /**
  * User profile picture upload controller
