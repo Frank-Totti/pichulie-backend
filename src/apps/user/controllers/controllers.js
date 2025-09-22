@@ -879,7 +879,7 @@ const deleteUser = async (req, res) => {
       });
     }
 
-    // Delete profile picture from Cloudinary
+    // Delete profile picture
     const defaultPictureId = 'Global_Profile_Picture_j3ayrk';
     if (user.profilePicture.profilePictureID && 
         user.profilePicture.profilePictureID !== defaultPictureId) {
