@@ -1,5 +1,5 @@
 const express = require('express');
-const { createTask, getUserTasks, getTasksByDate, getTodayTasks, edit, getTaskById} = require('../apps/task/controllers/controllers');
+const { createTask, getUserTasks, getTasksByDate, getTodayTasks, edit, getTaskById, deleteTask} = require('../apps/task/controllers/controllers');
 //const authMiddleware = require('../apps/task/middlewares/middlewares');
 const { authenticateToken } = require('../middlewares/auth');
 
@@ -48,7 +48,20 @@ router.post('/today', authenticateToken, getTodayTasks);
  */
 router.put('/edit/:id', authenticateToken, edit);
 
+/**
+ * @route PUT /tasks/edit/{id}
+ * @group Tasks - Task management operations
+ * @summary Edit an existing task
+ * @security JWT
+ */
 router.get('/get-task/:id',authenticateToken, getTaskById);
 
+/**
+ * @route DELETE /tasks/delete/{id}
+ * @group Tasks - Task management operations
+ * @summary Delete a task
+ * @security JWT
+ */
+router.delete('/delete/:id', authenticateToken, deleteTask);
 
 module.exports = router;

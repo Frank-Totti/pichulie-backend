@@ -900,11 +900,7 @@ const deleteUser = async (req, res) => {
     // Delete the user account
     await User.findByIdAndDelete(userId);
 
-    res.status(200).json({
-      success: true,
-      message: 'Account deleted successfully. All associated data has been removed.',
-      timestamp: new Date().toISOString()
-    });
+    res.status(204).end(); //res 204 returns nothing 
 
   } catch (error) {
     return handleServerError(error, 'Delete User Account', res);
