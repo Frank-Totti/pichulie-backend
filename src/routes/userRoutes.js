@@ -1,6 +1,6 @@
 const express = require('express');
 const { loginLimiter, handleMulterError} = require('../apps/user/middlewares/middlewares');
-const { login, logout, requestPasswordReset, resetPassword, validateResetToken, resendResetToken, register, update, uploadProfilePicture, getData } = require('../apps/user/controllers/controllers');
+const { login, logout, requestPasswordReset, resetPassword, validateResetToken, resendResetToken, register, update, uploadProfilePicture, getData, deleteUser } = require('../apps/user/controllers/controllers');
 //const loginLimiter = require('../apps/user/middlewares/middlewares');
 const { authenticateToken } = require('../middlewares/auth');
 const { upload } = require('../config/cloudinary');
@@ -84,5 +84,13 @@ router.post('/reset-password', resetPassword);
  * @description Resets user password using a valid reset token.
  */
 router.post('/resend-reset', resendResetToken);
+
+/**
+ * @route DELETE /delete-account
+ * @group User - User account operations
+ * @summary Delete user account
+ * @description Permanently deletes the authenticated user's account and all associated data including tasks and profile picture. This action cannot be undone.
+ */
+router.delete('/delete-account', authenticateToken, deleteUser);
 
 module.exports = router;

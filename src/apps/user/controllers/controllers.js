@@ -840,4 +840,75 @@ const logout = async (req, res) => {
   }
 };
 
-module.exports = { login, logout, requestPasswordReset, resetPassword, validateResetToken, resendResetToken, register, update, uploadProfilePicture, getData };
+/**
+ * Delete user account controller
+ * 
+ * Note: This cannot be undone :D
+ * 
+ * Deletion flow:
+ * 1. Validates user authentication via middleware
+ * 2. Retrieves user information from database
+ * 3. Deletes user's profile picture from Cloudinary (if not default)
+ * 4. Removes all tasks associated with the user
+ * 5. Deletes the user account from database
+ * 6. Returns confirmation response
+ * 
+ * Security Features:
+ * - Requires valid authentication token
+ * - Only allows users to delete their own account
+ * - Complete data cleanup to prevent orphaned records
+ * - Secure Cloudinary asset cleanup
+ * 
+ * Data Cleanup:
+ * - User profile picture (if custom)
+ * - All user tasks
+ * - User account record
+ * 
+ * @see {@link https://cloudinary.com/documentation/image_upload_api_reference#destroy_method} Cloudinary destroy method
+ */
+const deleteUser = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    // Get user information to access profile picture details
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
+
+    // Delete profile picture from Cloudinary
+    const defaultPictureId = 'Global_Profile_Picture_j3ayrk';
+    if (user.profilePicture.profilePictureID && 
+        user.profilePicture.profilePictureID !== defaultPictureId) {
+      try {
+        await cloudinary.uploader.destroy(user.profilePicture.profilePictureID);
+      } catch (deleteError) {
+        console.warn('Failed to delete profile picture from Cloudinary:', deleteError);
+        // Continue with user deletion even if profile picture deletion fails
+      }
+    }
+
+    // Import Task model to delete user's tasks
+    const Task = require('../../task/models/models');
+    
+    // Delete all tasks associated with this user
+    await Task.deleteMany({ user_id: userId });
+
+    // Delete the user account
+    await User.findByIdAndDelete(userId);
+
+    res.status(200).json({
+      success: true,
+      message: 'Account deleted successfully. All associated data has been removed.',
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    return handleServerError(error, 'Delete User Account', res);
+  }
+};
+
+module.exports = { login, logout, requestPasswordReset, resetPassword, validateResetToken, resendResetToken, register, update, uploadProfilePicture, getData, deleteUser };
