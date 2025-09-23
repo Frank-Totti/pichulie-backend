@@ -160,6 +160,7 @@ const createTask = async (req, res) => {
 const getTasksByDate = async (req, res) => {
   try {
     const { user_id, task_date } = req.body; 
+    //console.log({ user_id, task_date });
 
     if (!task_date) {
       return res.status(400).json({ message: "No se recibió task_date" });
@@ -253,6 +254,7 @@ const getTodayTasks = async (req, res) => {
 };
 
 const getTaskById = async (req, res) => {
+  //console.log(req.params);
   try {
     const task = await Task.findById(req.params.id);
 
