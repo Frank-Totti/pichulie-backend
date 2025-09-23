@@ -310,13 +310,17 @@ const edit = async (req, res) => {
   }
 }
 
+const deleteTask = async (req, res) => {
+  try{
+    const task = await Task.findById(req.params.id);
 
+    await Task.deleteOne(task);
 
+    return res.status(204).end(); //res 204 returns nothing 
 
+  } catch(error) {
+    return handleServerError(error, 'Delete task', res);
+  }
+}
 
-
-
-
-
-
-module.exports = { createTask, getUserTasks, getTasksByDate, getTodayTasks, edit, getTaskById};
+module.exports = { createTask, getUserTasks, getTasksByDate, getTodayTasks, edit, getTaskById, deleteTask};
