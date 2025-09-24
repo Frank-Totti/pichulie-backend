@@ -871,7 +871,7 @@ const logout = async (req, res) => {
  */
 const deleteUser = async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.user.id;
 
     // Get user information to access profile picture details
     const user = await User.findById(userId);
